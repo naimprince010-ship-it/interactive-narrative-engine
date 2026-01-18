@@ -4,9 +4,5 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["sin1"],
-  "env": {
-    "NEXT_PUBLIC_APP_URL": "@app_url",
-    "NEXT_PUBLIC_PREMIUM_CHAPTER_PRICE": "@premium_chapter_price"
-  }
+  "regions": ["sin1"]
 }
