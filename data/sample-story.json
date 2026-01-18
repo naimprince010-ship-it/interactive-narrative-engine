@@ -1,0 +1,285 @@
+{
+  "id": "story-1",
+  "title": "The Mysterious Island",
+  "description": "A thrilling adventure where your choices shape the story",
+  "author": "Interactive Narratives",
+  "startChapterId": "chapter-1",
+  "chapters": [
+    {
+      "id": "chapter-1",
+      "title": "The Arrival",
+      "content": "You wake up on a mysterious island beach. The waves crash softly behind you, and ahead lies a dense jungle. You see two paths: one leading into the forest, another along the shoreline.",
+      "isPremium": false,
+      "choices": [
+        {
+          "id": "choice-1",
+          "text": "Explore the jungle path",
+          "nextChapterId": "chapter-2"
+        },
+        {
+          "id": "choice-2",
+          "text": "Walk along the shoreline",
+          "nextChapterId": "chapter-3"
+        }
+      ]
+    },
+    {
+      "id": "chapter-2",
+      "title": "Into the Jungle",
+      "content": "The jungle is thick and mysterious. Strange sounds echo through the trees. You discover ancient ruins covered in vines. There's an entrance with glowing symbols.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-3",
+          "text": "Enter the ruins",
+          "nextChapterId": "chapter-4"
+        },
+        {
+          "id": "choice-4",
+          "text": "Continue deeper into the jungle",
+          "nextChapterId": "chapter-5"
+        }
+      ]
+    },
+    {
+      "id": "chapter-3",
+      "title": "The Shoreline Discovery",
+      "content": "Walking along the beach, you find remnants of a shipwreck. Among the debris, you spot a sealed waterproof container. Inside might be supplies or clues about this island.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-5",
+          "text": "Open the container",
+          "nextChapterId": "chapter-6"
+        },
+        {
+          "id": "choice-6",
+          "text": "Search the rest of the wreckage",
+          "nextChapterId": "chapter-7"
+        }
+      ]
+    },
+    {
+      "id": "chapter-4",
+      "title": "The Ancient Chamber",
+      "content": "Inside the ruins, you find a chamber with ancient artifacts. A mystical artifact glows in the center. Taking it might unlock the island's secrets.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-7",
+          "text": "Take the artifact",
+          "nextChapterId": "chapter-8"
+        },
+        {
+          "id": "choice-8",
+          "text": "Leave it and explore further",
+          "nextChapterId": "chapter-9"
+        }
+      ]
+    },
+    {
+      "id": "chapter-5",
+      "title": "Deep in the Jungle",
+      "content": "You venture deeper and find a hidden village. The inhabitants seem friendly but speak an unknown language. They gesture for you to follow them.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-9",
+          "text": "Follow the villagers",
+          "nextChapterId": "chapter-10"
+        },
+        {
+          "id": "choice-10",
+          "text": "Politely decline and return",
+          "nextChapterId": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "chapter-6",
+      "title": "The Container's Secret",
+      "content": "Inside the container, you find a map of the island and a journal. The journal speaks of hidden treasures and warnings about the island's dangers.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-11",
+          "text": "Follow the map to the treasure",
+          "nextChapterId": "chapter-11"
+        },
+        {
+          "id": "choice-12",
+          "text": "Read more of the journal",
+          "nextChapterId": "chapter-12"
+        }
+      ]
+    },
+    {
+      "id": "chapter-7",
+      "title": "More Wreckage",
+      "content": "Among the wreckage, you find a working radio and some supplies. You could try to send a distress signal or keep exploring the island.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-13",
+          "text": "Send a distress signal",
+          "nextChapterId": "chapter-13"
+        },
+        {
+          "id": "choice-14",
+          "text": "Keep the radio and explore more",
+          "nextChapterId": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "chapter-8",
+      "title": "The Power Unleashed",
+      "content": "As you touch the artifact, visions flood your mind. You see the island's past and understand its mysteries. You now have the power to leave... or to stay and become its guardian.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-15",
+          "text": "Use the power to leave",
+          "nextChapterId": "chapter-end-escape"
+        },
+        {
+          "id": "choice-16",
+          "text": "Stay as the island's guardian",
+          "nextChapterId": "chapter-end-guardian"
+        }
+      ]
+    },
+    {
+      "id": "chapter-9",
+      "title": "Hidden Passages",
+      "content": "You find secret passages beneath the ruins, leading to an underground network. Ancient technology hums with energy.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-17",
+          "text": "Activate the technology",
+          "nextChapterId": "chapter-8"
+        },
+        {
+          "id": "choice-18",
+          "text": "Leave the ruins",
+          "nextChapterId": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "chapter-10",
+      "title": "The Village Welcome",
+      "content": "The villagers show you their way of life in harmony with the island. They offer you a place among them, sharing their ancient wisdom.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-19",
+          "text": "Join the village",
+          "nextChapterId": "chapter-end-village"
+        },
+        {
+          "id": "choice-20",
+          "text": "Thank them and continue exploring",
+          "nextChapterId": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "chapter-11",
+      "title": "The Treasure Hunt",
+      "content": "Following the map, you discover a cave filled with gold and precious gems. But you also trigger an ancient trap. You must choose quickly!",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-21",
+          "text": "Take some treasure and run",
+          "nextChapterId": "chapter-end-treasure"
+        },
+        {
+          "id": "choice-22",
+          "text": "Try to disarm the trap",
+          "nextChapterId": "chapter-12"
+        }
+      ]
+    },
+    {
+      "id": "chapter-12",
+      "title": "The Journal's Warning",
+      "content": "The journal reveals that the island is a sanctuary for mystical creatures. It warns that greed leads to doom, but respect earns passage home.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-23",
+          "text": "Seek the creatures' blessing",
+          "nextChapterId": "chapter-end-blessing"
+        },
+        {
+          "id": "choice-24",
+          "text": "Return to explore more",
+          "nextChapterId": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "chapter-13",
+      "title": "The Rescue",
+      "content": "Your distress signal is received! A rescue helicopter arrives. But as you're about to leave, you wonder if you're making the right choice.",
+      "isPremium": true,
+      "choices": [
+        {
+          "id": "choice-25",
+          "text": "Board the helicopter and leave",
+          "nextChapterId": "chapter-end-rescue"
+        },
+        {
+          "id": "choice-26",
+          "text": "Stay on the island",
+          "nextChapterId": "chapter-1"
+        }
+      ]
+    },
+    {
+      "id": "chapter-end-escape",
+      "title": "Escape to Freedom",
+      "content": "Using the artifact's power, you create a portal home. You leave the island with its secrets intact, forever changed by your adventure. THE END",
+      "isPremium": true,
+      "choices": []
+    },
+    {
+      "id": "chapter-end-guardian",
+      "title": "The New Guardian",
+      "content": "You accept the role of guardian, protecting the island's mysteries for generations to come. You've found your true purpose. THE END",
+      "isPremium": true,
+      "choices": []
+    },
+    {
+      "id": "chapter-end-village",
+      "title": "A New Life",
+      "content": "You become part of the village, learning their ways and living in perfect harmony with nature. You've found a new home. THE END",
+      "isPremium": true,
+      "choices": []
+    },
+    {
+      "id": "chapter-end-treasure",
+      "title": "Rich but Cursed",
+      "content": "You escape with treasure but feel the weight of a curse. The riches bring no joy, only regret for what you left behind. THE END",
+      "isPremium": true,
+      "choices": []
+    },
+    {
+      "id": "chapter-end-blessing",
+      "title": "The Blessing",
+      "content": "The mystical creatures recognize your pure heart and grant you safe passage home, along with their eternal blessing. THE END",
+      "isPremium": true,
+      "choices": []
+    },
+    {
+      "id": "chapter-end-rescue",
+      "title": "Rescued",
+      "content": "You return to civilization, forever haunted by memories of the mysterious island and the adventures you had there. THE END",
+      "isPremium": true,
+      "choices": []
+    }
+  ]
+}
