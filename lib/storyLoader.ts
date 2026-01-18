@@ -37,7 +37,13 @@ export function getUnlockedChapters(): string[] {
   
   const stored = localStorage.getItem("unlockedChapters");
   if (stored) {
-    return JSON.parse(stored);
+    try {
+      return JSON.parse(stored);
+    } catch (error) {
+      // If stored data is corrupted, reset to default
+      console.error("Failed to parse unlocked chapters:", error);
+      return ["chapter-1"];
+    }
   }
   // Always start with chapter-1 unlocked
   return ["chapter-1"];

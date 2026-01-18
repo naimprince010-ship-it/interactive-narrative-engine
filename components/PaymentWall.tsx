@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { PaymentInfo } from "@/types/story";
 
 interface PaymentWallProps {
@@ -13,18 +14,18 @@ export default function PaymentWall({
   onPaymentSuccess,
   onCancel,
 }: PaymentWallProps) {
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handlePayment = () => {
     // Simulate payment processing
     // In a real app, this would integrate with a payment gateway
-    alert(
-      `Processing payment of ${paymentInfo.amount} ${paymentInfo.currency}...`
-    );
+    setIsProcessing(true);
 
     // Simulate successful payment after a brief delay
     setTimeout(() => {
-      alert("Payment successful! Chapter unlocked.");
+      setIsProcessing(false);
       onPaymentSuccess();
-    }, 1000);
+    }, 2000);
   };
 
   return (
@@ -67,16 +68,48 @@ export default function PaymentWall({
           </p>
         </div>
 
+        {isProcessing && (
+          <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center">
+            <div className="flex items-center justify-center space-x-2">
+              <svg
+                className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                Processing payment...
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
           <button
             onClick={handlePayment}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200"
+            disabled={isProcessing}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition duration-200"
           >
-            Pay Now
+            {isProcessing ? "Processing..." : "Pay Now"}
           </button>
           <button
             onClick={onCancel}
-            className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium py-3 px-4 rounded-lg transition duration-200"
+            disabled={isProcessing}
+            className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-800 dark:text-white font-medium py-3 px-4 rounded-lg transition duration-200"
           >
             Go Back
           </button>

@@ -60,7 +60,7 @@ export default function StoryPlayer() {
     const chapter = getChapter(story, chapterId);
     if (chapter) {
       setCurrentChapter(chapter);
-      setHistory([...history, chapterId]);
+      setHistory((prev) => [...prev, chapterId]);
       window.scrollTo(0, 0);
     }
   };
