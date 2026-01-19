@@ -14,7 +14,7 @@ export default function Home() {
           
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
             <h2 className="text-3xl font-semibold text-white mb-6">Featured Stories</h2>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <Link href="/story/1">
                 <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-6 hover:scale-105 transition-transform cursor-pointer shadow-lg">
                   <h3 className="text-2xl font-bold text-white mb-2">The Enchanted Forest</h3>
@@ -25,6 +25,12 @@ export default function Home() {
                 <div className="bg-gradient-to-br from-red-600 to-orange-600 rounded-xl p-6 hover:scale-105 transition-transform cursor-pointer shadow-lg">
                   <h3 className="text-2xl font-bold text-white mb-2">Space Odyssey</h3>
                   <p className="text-red-100">Free chapters available</p>
+                </div>
+              </Link>
+              <Link href="/story/romantic-01">
+                <div className="bg-gradient-to-br from-rose-600 to-fuchsia-600 rounded-xl p-6 hover:scale-105 transition-transform cursor-pointer shadow-lg">
+                  <h3 className="text-2xl font-bold text-white mb-2">বৃষ্টি ভেজা বিকেল</h3>
+                  <p className="text-rose-100">ফ্রি অধ্যায় আছে</p>
                 </div>
               </Link>
             </div>
