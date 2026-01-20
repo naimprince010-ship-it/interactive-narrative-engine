@@ -80,6 +80,24 @@ The current implementation includes a demo payment modal. For production use, in
 - **Nagad API**: Contact Nagad for merchant API access
 - **Rocket API**: Contact Dutch-Bangla Bank for merchant API access
 
+### bKash Tokenized Checkout (Automation)
+
+Set these environment variables for automated verification:
+
+```
+BKASH_CHECKOUT_APP_KEY=
+BKASH_CHECKOUT_APP_SECRET=
+BKASH_CHECKOUT_USERNAME=
+BKASH_CHECKOUT_PASSWORD=
+BKASH_CHECKOUT_BASE_URL=
+```
+
+If you want server-side verification records stored in Supabase, also set:
+
+```
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
 ## Adding New Stories
 
 Edit `data/stories.ts` to add new stories:

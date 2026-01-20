@@ -7,28 +7,86 @@ interface PaymentModalProps {
   onSuccess: () => void
   amount: number
   chapterTitle: string
+  storyId: string
 }
 
-export default function PaymentModal({ onClose, onSuccess, amount, chapterTitle }: PaymentModalProps) {
+function getDeviceId() {
+  if (typeof window === 'undefined') {
+    return 'server'
+  }
+
+  const stored = localStorage.getItem('device-id')
+  if (stored) {
+    return stored
+  }
+
+  const generated = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `device-${Date.now()}-${Math.random().toString(16).slice(2)}`
+
+  localStorage.setItem('device-id', generated)
+  return generated
+}
+
+export default function PaymentModal({
+  onClose,
+  onSuccess,
+  amount,
+  chapterTitle,
+  storyId,
+}: PaymentModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<'bKash' | 'nagad' | 'rocket' | null>(null)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [transactionId, setTransactionId] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handlePayment = async () => {
-    if (!paymentMethod || !phoneNumber || !transactionId) {
+    if (!paymentMethod) {
       alert('Please fill in all fields')
       return
     }
 
-    setIsProcessing(true)
+    if (paymentMethod !== 'bKash') {
+      alert('Only bKash automation is available right now.')
+      return
+    }
 
-    // Simulate payment processing
-    setTimeout(() => {
+    setIsProcessing(true)
+    setErrorMessage(null)
+
+    try {
+      const deviceId = getDeviceId()
+      const response = await fetch('/api/bkash/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'create',
+          storyId,
+          amount,
+          returnUrl: `${window.location.origin}/story/${storyId}`,
+          deviceId,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || 'Failed to create payment.')
+      }
+
+      const data = await response.json()
+      if (!data.bkashURL) {
+        throw new Error('bKash URL missing from response.')
+      }
+
+      window.location.href = data.bkashURL
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Payment failed.'
+      setErrorMessage(message)
       setIsProcessing(false)
-      alert(`Payment successful! Transaction ID: ${transactionId}`)
-      onSuccess()
-    }, 2000)
+    }
   }
 
   return (
@@ -69,7 +127,7 @@ export default function PaymentModal({ onClose, onSuccess, amount, chapterTitle 
             </div>
           </div>
 
-          {paymentMethod && (
+          {paymentMethod && paymentMethod !== 'bKash' && (
             <>
               <div>
                 <label className="block text-white font-medium mb-2">
@@ -113,10 +171,33 @@ export default function PaymentModal({ onClose, onSuccess, amount, chapterTitle 
               </button>
             </>
           )}
+
+          {paymentMethod === 'bKash' && (
+            <>
+              <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-4">
+                <p className="text-blue-200 text-sm">
+                  <strong>Auto-pay:</strong> You will be redirected to bKash to complete the payment.
+                </p>
+              </div>
+              <button
+                onClick={handlePayment}
+                disabled={isProcessing}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? 'Processing...' : 'Pay with bKash'}
+              </button>
+            </>
+          )}
+
+          {errorMessage && (
+            <div className="bg-red-500/20 border border-red-500 rounded-lg p-3">
+              <p className="text-red-200 text-sm">{errorMessage}</p>
+            </div>
+          )}
         </div>
 
         <p className="text-gray-400 text-sm mt-6 text-center">
-          Note: This is a demo. Integrate with actual payment gateway for production.
+          Note: This flow uses bKash tokenized checkout for automated verification.
         </p>
       </div>
     </div>
