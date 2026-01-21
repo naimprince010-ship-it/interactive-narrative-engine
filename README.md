@@ -109,6 +109,22 @@ Token packs:
 
 If you use Supabase, apply the wallet schema in `supabase/wallets.sql`.
 
+### Admin Verification Dashboard
+
+Set an admin token for the `/admin` page:
+
+```
+ADMIN_DASH_TOKEN=
+```
+
+If you already ran `wallets.sql`, run `supabase/wallets_admin.sql` to add verification columns.
+
+### bKash Production Checklist
+
+- Set production credentials in Vercel env (`BKASH_CHECKOUT_*`)
+- Ensure bKash dashboard has your production callback URL allowlisted
+- Redeploy after env updates
+
 ## Adding New Stories
 
 Edit `data/stories.ts` to add new stories:

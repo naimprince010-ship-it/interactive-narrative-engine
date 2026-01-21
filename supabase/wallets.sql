@@ -15,6 +15,8 @@ create table if not exists public.token_purchases (
   amount_bdt integer not null,
   tokens integer not null,
   trx_id text,
+  verified boolean not null default false,
+  verified_at timestamptz,
   created_at timestamptz not null default now()
 );
 
