@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { getStoryById, getChapterByStoryAndId } from '@/data/stories'
 import { Chapter } from '@/types/story'
 import PaymentModal from '@/components/PaymentModal'
@@ -9,8 +9,6 @@ import Link from 'next/link'
 
 export default function StoryPage() {
   const params = useParams()
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const storyId = params.storyId as string
   const [currentChapterId, setCurrentChapterId] = useState<string | null>(null)
   const [unlockedChapters, setUnlockedChapters] = useState<Set<string>>(new Set())
@@ -18,8 +16,9 @@ export default function StoryPage() {
   const [pendingChapterId, setPendingChapterId] = useState<string | null>(null)
   const [chapter, setChapter] = useState<Chapter | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
-  const [hasVerifiedPayment, setHasVerifiedPayment] = useState(false)
-  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false)
+  const [tokenBalance, setTokenBalance] = useState<number | null>(null)
+
+  const tokenCost = 10
 
   const story = getStoryById(storyId)
 
@@ -53,43 +52,19 @@ export default function StoryPage() {
   }, [])
 
   useEffect(() => {
-    if (currentChapterId && story) {
-      const chapterData = getChapterByStoryAndId(storyId, currentChapterId)
-      setChapter(chapterData || null)
-    }
-  }, [currentChapterId, storyId, story])
-
-  useEffect(() => {
-    const paymentFlag = localStorage.getItem(`story-payment-${storyId}`)
-    if (paymentFlag) {
-      setHasVerifiedPayment(true)
-    }
-  }, [storyId])
-
-  useEffect(() => {
-    const paymentID =
-      searchParams.get('paymentID') ||
-      searchParams.get('paymentId') ||
-      searchParams.get('payment_id')
-
-    if (!paymentID || !storyId || !deviceId || isVerifyingPayment) {
+    if (!deviceId) {
       return
     }
 
-    setIsVerifyingPayment(true)
+    const cached = localStorage.getItem(`token-balance-${deviceId}`)
+    if (cached) {
+      const parsed = Number(cached)
+      if (!Number.isNaN(parsed)) {
+        setTokenBalance(parsed)
+      }
+    }
 
-    fetch('/api/bkash/payment', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: 'execute',
-        storyId,
-        paymentID,
-        deviceId,
-      }),
-    })
+    fetch(`/api/tokens?deviceId=${deviceId}`)
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(await response.text())
@@ -97,66 +72,60 @@ export default function StoryPage() {
         return response.json()
       })
       .then((data) => {
-        if (data.success) {
-          localStorage.setItem(`story-payment-${storyId}`, 'true')
-          setHasVerifiedPayment(true)
-          const pending = localStorage.getItem(`story-pending-${storyId}`)
-          if (pending) {
-            handlePaymentSuccess(pending)
-          }
+        if (typeof data.balance === 'number') {
+          setTokenBalance(data.balance)
+          localStorage.setItem(`token-balance-${deviceId}`, String(data.balance))
         }
       })
       .catch(() => {
-        // Ignore and allow manual retry via modal
+        // Ignore fetch errors for now
       })
-      .finally(() => {
-        setIsVerifyingPayment(false)
-        router.replace(`/story/${storyId}`)
-      })
-  }, [deviceId, isVerifyingPayment, router, searchParams, storyId])
+  }, [deviceId])
+
+  useEffect(() => {
+    if (currentChapterId && story) {
+      const chapterData = getChapterByStoryAndId(storyId, currentChapterId)
+      setChapter(chapterData || null)
+    }
+  }, [currentChapterId, storyId, story])
 
   const handleChoiceClick = async (nextChapterId: string) => {
     const nextChapter = getChapterByStoryAndId(storyId, nextChapterId)
     
     if (nextChapter?.isPremium && !unlockedChapters.has(nextChapterId)) {
-      if (hasVerifiedPayment && story) {
-        const newUnlocked = new Set(unlockedChapters)
-        newUnlocked.add(nextChapterId)
-        setUnlockedChapters(newUnlocked)
-        setCurrentChapterId(nextChapterId)
-        localStorage.setItem(`story-${storyId}`, JSON.stringify({
-          currentChapterId: nextChapterId,
-          unlockedChapters: Array.from(newUnlocked),
-        }))
+      if (!deviceId || tokenBalance === null || tokenBalance < tokenCost) {
+        setPendingChapterId(nextChapterId)
+        setShowPaymentModal(true)
         return
       }
 
-      if (deviceId) {
-        try {
-          const response = await fetch(`/api/bkash/payment?storyId=${storyId}&deviceId=${deviceId}`)
-          const data = await response.json()
-          if (data.hasPayment) {
-            localStorage.setItem(`story-payment-${storyId}`, 'true')
-            setHasVerifiedPayment(true)
-            const newUnlocked = new Set(unlockedChapters)
-            newUnlocked.add(nextChapterId)
-            setUnlockedChapters(newUnlocked)
-            setCurrentChapterId(nextChapterId)
-            localStorage.setItem(`story-${storyId}`, JSON.stringify({
-              currentChapterId: nextChapterId,
-              unlockedChapters: Array.from(newUnlocked),
-            }))
-            return
-          }
-        } catch {
-          // Fall through to payment modal
-        }
-      }
+      try {
+        const response = await fetch('/api/tokens', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'spend',
+            deviceId,
+            amount: tokenCost,
+          }),
+        })
 
-      setPendingChapterId(nextChapterId)
-      localStorage.setItem(`story-pending-${storyId}`, nextChapterId)
-      setShowPaymentModal(true)
-      return
+        if (!response.ok) {
+          throw new Error(await response.text())
+        }
+
+        const data = await response.json()
+        if (typeof data.balance === 'number') {
+          setTokenBalance(data.balance)
+          localStorage.setItem(`token-balance-${deviceId}`, String(data.balance))
+        }
+      } catch {
+        setPendingChapterId(nextChapterId)
+        setShowPaymentModal(true)
+        return
+      }
     }
 
     setCurrentChapterId(nextChapterId)
@@ -173,27 +142,65 @@ export default function StoryPage() {
     }
   }
 
-  const handlePaymentSuccess = (chapterId?: string) => {
-    const targetChapterId = chapterId || pendingChapterId
-    if (!targetChapterId) {
+  const handlePaymentSuccess = async (balance: number) => {
+    if (!deviceId) {
       return
     }
 
-    const newUnlocked = new Set(unlockedChapters)
-    newUnlocked.add(targetChapterId)
-    setUnlockedChapters(newUnlocked)
-    setCurrentChapterId(targetChapterId)
+    setTokenBalance(balance)
+    localStorage.setItem(`token-balance-${deviceId}`, String(balance))
 
-    if (story) {
-      localStorage.setItem(`story-${storyId}`, JSON.stringify({
-        currentChapterId: targetChapterId,
-        unlockedChapters: Array.from(newUnlocked),
-      }))
+    if (!pendingChapterId) {
+      setShowPaymentModal(false)
+      return
     }
 
-    localStorage.removeItem(`story-pending-${storyId}`)
-    setShowPaymentModal(false)
-    setPendingChapterId(null)
+    if (balance < tokenCost) {
+      setShowPaymentModal(false)
+      setPendingChapterId(null)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'spend',
+          deviceId,
+          amount: tokenCost,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await response.text())
+      }
+
+      const data = await response.json()
+      if (typeof data.balance === 'number') {
+        setTokenBalance(data.balance)
+        localStorage.setItem(`token-balance-${deviceId}`, String(data.balance))
+      }
+
+      const newUnlocked = new Set(unlockedChapters)
+      newUnlocked.add(pendingChapterId)
+      setUnlockedChapters(newUnlocked)
+      setCurrentChapterId(pendingChapterId)
+
+      if (story) {
+        localStorage.setItem(`story-${storyId}`, JSON.stringify({
+          currentChapterId: pendingChapterId,
+          unlockedChapters: Array.from(newUnlocked),
+        }))
+      }
+    } catch {
+      // Ignore spend failure
+    } finally {
+      setShowPaymentModal(false)
+      setPendingChapterId(null)
+    }
   }
 
   if (!story || !chapter) {
@@ -207,9 +214,14 @@ export default function StoryPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-8">
-        <Link href="/" className="text-purple-300 hover:text-white mb-4 inline-block">
-          ← Back to Stories
-        </Link>
+        <div className="flex items-center justify-between mb-4">
+          <Link href="/" className="text-purple-300 hover:text-white">
+            ← Back to Stories
+          </Link>
+          <div className="text-yellow-200 text-sm bg-yellow-500/10 border border-yellow-500/40 px-3 py-1 rounded-full">
+            🪙 {tokenBalance ?? '...'}
+          </div>
+        </div>
         
         <div className="max-w-4xl mx-auto">
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
@@ -235,8 +247,10 @@ export default function StoryPage() {
                   const nextChapter = getChapterByStoryAndId(storyId, choice.nextChapterId)
                   const isLocked =
                     nextChapter?.isPremium &&
-                    !unlockedChapters.has(choice.nextChapterId) &&
-                    !hasVerifiedPayment
+                    !unlockedChapters.has(choice.nextChapterId)
+                  const displayText = isLocked
+                    ? 'পরের পাতা উল্টান (১০ টোকেন লাগবে)'
+                    : choice.text
                   
                   return (
                     <button
@@ -249,9 +263,9 @@ export default function StoryPage() {
                           : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-medium shadow-lg hover:scale-105'
                       }`}
                     >
-                      {choice.text}
+                      {displayText}
                       {isLocked && (
-                        <span className="ml-2 text-yellow-400">🔒 (Premium - 10 BDT)</span>
+                        <span className="ml-2 text-yellow-400">🔒</span>
                       )}
                     </button>
                   )
@@ -279,8 +293,6 @@ export default function StoryPage() {
             setPendingChapterId(null)
           }}
           onSuccess={handlePaymentSuccess}
-          amount={10}
-          storyId={storyId}
           chapterTitle={pendingChapterId ? getChapterByStoryAndId(storyId, pendingChapterId)?.title || 'Chapter' : 'Chapter'}
         />
       )}

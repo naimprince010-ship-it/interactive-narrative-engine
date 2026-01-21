@@ -4,10 +4,8 @@ import { useState } from 'react'
 
 interface PaymentModalProps {
   onClose: () => void
-  onSuccess: () => void
-  amount: number
+  onSuccess: (balance: number) => void
   chapterTitle: string
-  storyId: string
 }
 
 function getDeviceId() {
@@ -31,24 +29,41 @@ function getDeviceId() {
 export default function PaymentModal({
   onClose,
   onSuccess,
-  amount,
   chapterTitle,
-  storyId,
 }: PaymentModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'bKash' | 'nagad' | 'rocket' | null>(null)
+  const [selectedPackage, setSelectedPackage] = useState<'trial' | 'bonus' | 'best' | null>(null)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [transactionId, setTransactionId] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handlePayment = async () => {
-    if (!paymentMethod) {
-      alert('Please fill in all fields')
-      return
-    }
+  const packages = [
+    {
+      id: 'trial' as const,
+      title: 'ট্রায়াল প্যাক',
+      amount: 10,
+      tokens: 100,
+      benefit: 'মাইক্রো-ট্রানজিশন শুরু করার জন্য পারফেক্ট',
+    },
+    {
+      id: 'bonus' as const,
+      title: 'বোনাস প্যাক',
+      amount: 50,
+      tokens: 550,
+      benefit: '১০% বোনাস টোকেন',
+    },
+    {
+      id: 'best' as const,
+      title: 'সেরা অফার',
+      amount: 100,
+      tokens: 1200,
+      benefit: '২০% বোনাস টোকেন',
+    },
+  ]
 
-    if (paymentMethod !== 'bKash') {
-      alert('Only bKash automation is available right now.')
+  const handlePurchase = async () => {
+    if (!selectedPackage || !transactionId) {
+      alert('প্যাকেজ এবং ট্রানজেকশন আইডি দিন')
       return
     }
 
@@ -57,31 +72,29 @@ export default function PaymentModal({
 
     try {
       const deviceId = getDeviceId()
-      const response = await fetch('/api/bkash/payment', {
+      const response = await fetch('/api/tokens/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'create',
-          storyId,
-          amount,
-          returnUrl: `${window.location.origin}/story/${storyId}`,
           deviceId,
+          packageId: selectedPackage,
+          trxId: transactionId,
         }),
       })
 
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(errorText || 'Failed to create payment.')
+        throw new Error(errorText || 'Purchase failed.')
       }
 
       const data = await response.json()
-      if (!data.bkashURL) {
-        throw new Error('bKash URL missing from response.')
+      if (typeof data.balance !== 'number') {
+        throw new Error('Balance missing from response.')
       }
 
-      window.location.href = data.bkashURL
+      onSuccess(data.balance)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Payment failed.'
       setErrorMessage(message)
@@ -104,90 +117,69 @@ export default function PaymentModal({
 
         <div className="mb-6">
           <p className="text-purple-300 mb-2">Chapter: <span className="text-white font-semibold">{chapterTitle}</span></p>
-          <p className="text-3xl font-bold text-white mb-4">Amount: {amount} BDT</p>
+          <p className="text-lg text-purple-200">প্রিমিয়াম পাতা খুলতে ১০ টোকেন লাগবে</p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-white font-medium mb-2">Payment Method</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['bKash', 'nagad', 'rocket'] as const).map((method) => (
+            <label className="block text-white font-medium mb-2">টোকেন প্যাকেজ বাছাই করুন</label>
+            <div className="grid gap-3">
+              {packages.map((pack) => (
                 <button
-                  key={method}
-                  onClick={() => setPaymentMethod(method)}
-                  className={`p-3 rounded-lg font-medium transition-all ${
-                    paymentMethod === method
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  key={pack.id}
+                  onClick={() => setSelectedPackage(pack.id)}
+                  className={`text-left p-4 rounded-lg border transition-all ${
+                    selectedPackage === pack.id
+                      ? 'bg-purple-700/60 border-purple-400 text-white'
+                      : 'bg-gray-800/60 border-gray-600 text-gray-200 hover:border-purple-400'
                   }`}
                 >
-                  {method}
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{pack.title}</span>
+                    <span className="text-sm text-purple-200">{pack.amount} টাকা</span>
+                  </div>
+                  <div className="text-sm text-purple-100 mt-1">🪙 {pack.tokens} টোকেন</div>
+                  <div className="text-xs text-gray-300 mt-1">{pack.benefit}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          {paymentMethod && paymentMethod !== 'bKash' && (
-            <>
-              <div>
-                <label className="block text-white font-medium mb-2">
-                  {paymentMethod} Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="01XXXXXXXXX"
-                  className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-purple-500 focus:outline-none"
-                />
-              </div>
+          <div>
+            <label className="block text-white font-medium mb-2">আপনার নাম্বার (ঐচ্ছিক)</label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="01XXXXXXXXX"
+              className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
 
-              <div>
-                <label className="block text-white font-medium mb-2">
-                  Transaction ID
-                </label>
-                <input
-                  type="text"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  placeholder="Enter transaction ID"
-                  className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-purple-500 focus:outline-none"
-                />
-              </div>
+          <div>
+            <label className="block text-white font-medium mb-2">Transaction ID</label>
+            <input
+              type="text"
+              value={transactionId}
+              onChange={(e) => setTransactionId(e.target.value)}
+              placeholder="Enter transaction ID"
+              className="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
 
-              <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-4">
-                <p className="text-blue-200 text-sm">
-                  <strong>Instructions:</strong> Send {amount} BDT to {paymentMethod} number: 
-                  <span className="font-mono font-bold"> 01XXXXXXXXX</span> (Use your merchant number in production)
-                </p>
-              </div>
+          <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-2">
+            <p className="text-blue-200 text-sm">
+              <strong>ম্যানুয়াল পেমেন্ট:</strong> আপনার পছন্দের মাধ্যমে টাকা পাঠিয়ে এখানে ট্রানজেকশন আইডি দিন।
+            </p>
+          </div>
 
-              <button
-                onClick={handlePayment}
-                disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing ? 'Processing...' : 'Confirm Payment'}
-              </button>
-            </>
-          )}
-
-          {paymentMethod === 'bKash' && (
-            <>
-              <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-4">
-                <p className="text-blue-200 text-sm">
-                  <strong>Auto-pay:</strong> You will be redirected to bKash to complete the payment.
-                </p>
-              </div>
-              <button
-                onClick={handlePayment}
-                disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing ? 'Processing...' : 'Pay with bKash'}
-              </button>
-            </>
-          )}
+          <button
+            onClick={handlePurchase}
+            disabled={isProcessing}
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isProcessing ? 'Processing...' : 'টোকেন কিনুন'}
+          </button>
 
           {errorMessage && (
             <div className="bg-red-500/20 border border-red-500 rounded-lg p-3">
@@ -197,7 +189,7 @@ export default function PaymentModal({
         </div>
 
         <p className="text-gray-400 text-sm mt-6 text-center">
-          Note: This flow uses bKash tokenized checkout for automated verification.
+          Note: এটি ম্যানুয়াল যাচাই ফ্লো। পরে অটোমেশন যোগ করা যাবে।
         </p>
       </div>
     </div>

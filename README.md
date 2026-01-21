@@ -98,6 +98,17 @@ If you want server-side verification records stored in Supabase, also set:
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
+### Token System (Manual)
+
+Premium chapters cost **10 tokens** each. Users can buy token packs manually and enter a transaction ID.
+
+Token packs:
+- 10 BDT → 100 tokens (Trial pack)
+- 50 BDT → 550 tokens (10% bonus)
+- 100 BDT → 1200 tokens (20% bonus)
+
+If you use Supabase, apply the wallet schema in `supabase/wallets.sql`.
+
 ## Adding New Stories
 
 Edit `data/stories.ts` to add new stories:
