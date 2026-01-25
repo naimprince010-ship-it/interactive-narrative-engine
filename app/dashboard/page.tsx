@@ -189,6 +189,22 @@ export default function DashboardPage() {
 
         <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6 space-y-4">
           <h2 className="text-xl font-semibold">Token Pack Purchase</h2>
+          
+          {!selectedPackage ? (
+            <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-200">📦 একটি প্যাকেজ সিলেক্ট করুন</p>
+            </div>
+          ) : (
+            <div className="bg-purple-900/30 border border-purple-500/50 rounded-lg p-4 mb-4 space-y-3">
+              <p className="text-sm font-semibold text-purple-200">✅ প্যাকেজ সিলেক্ট করা হয়েছে</p>
+              <div className="text-sm text-purple-100">
+                <p>📦 {packages.find(p => p.id === selectedPackage)?.title}</p>
+                <p>💰 {packages.find(p => p.id === selectedPackage)?.amount} টাকা</p>
+                <p>🪙 {packages.find(p => p.id === selectedPackage)?.tokens} টোকেন</p>
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-3">
             {packages.map((pack) => (
               <button
@@ -209,19 +225,39 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          <input
-            value={trxId}
-            onChange={(event) => setTrxId(event.target.value)}
-            placeholder="Transaction ID"
-            className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-white"
-          />
-          <button
-            onClick={handlePurchase}
-            className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-medium"
-          >
-            Confirm Purchase
-          </button>
-          {message && <p className="text-sm text-yellow-200">{message}</p>}
+
+          {selectedPackage && (
+            <>
+              <div className="bg-slate-800/60 border border-slate-600 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-semibold text-yellow-200">💳 পেমেন্ট করার ধাপ:</p>
+                <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
+                  <li>bKash/Nagad/Rocket এ <span className="text-yellow-300 font-semibold">01700000000</span> নম্বরে <span className="text-yellow-300 font-semibold">{packages.find(p => p.id === selectedPackage)?.amount} টাকা</span> পাঠান</li>
+                  <li>পেমেন্ট করার পর <span className="text-yellow-300 font-semibold">Transaction ID</span> পাবেন</li>
+                  <li>নিচে Transaction ID দিন এবং <span className="text-yellow-300 font-semibold">Confirm Purchase</span> ক্লিক করুন</li>
+                  <li>Admin verify করার পর টোকেন আপনার account এ যোগ হবে</li>
+                </ol>
+              </div>
+
+              <input
+                value={trxId}
+                onChange={(event) => setTrxId(event.target.value)}
+                placeholder="Transaction ID (bKash/Nagad/Rocket থেকে পাওয়া)"
+                className="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-white"
+              />
+              <button
+                onClick={handlePurchase}
+                disabled={!trxId.trim()}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded-lg font-medium"
+              >
+                Confirm Purchase
+              </button>
+              {message && (
+                <p className={`text-sm ${message.includes('যোগ') ? 'text-green-300' : 'text-yellow-200'}`}>
+                  {message}
+                </p>
+              )}
+            </>
+          )}
         </section>
 
         <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6 space-y-4">
