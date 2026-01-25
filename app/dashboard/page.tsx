@@ -47,6 +47,7 @@ export default function DashboardPage() {
   const [trxId, setTrxId] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [purchases, setPurchases] = useState<Purchase[]>([])
+  const [bkashNumber, setBkashNumber] = useState('01700000000')
 
   const loadSession = async () => {
     const supabase = getSupabaseClient()
@@ -92,10 +93,25 @@ export default function DashboardPage() {
     }
   }
 
+  const loadBkashNumber = async () => {
+    try {
+      const response = await fetch('/api/settings')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.bkash_number) {
+          setBkashNumber(data.bkash_number)
+        }
+      }
+    } catch (error) {
+      // Use default if API fails
+    }
+  }
+
   useEffect(() => {
     const init = async () => {
       const token = await loadSession()
       await loadBalance(token)
+      await loadBkashNumber()
       setLoading(false)
     }
     init()
@@ -231,7 +247,7 @@ export default function DashboardPage() {
               <div className="bg-slate-800/60 border border-slate-600 rounded-lg p-4 space-y-2">
                 <p className="text-sm font-semibold text-yellow-200">💳 পেমেন্ট করার ধাপ:</p>
                 <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
-                  <li>bKash/Nagad/Rocket এ <span className="text-yellow-300 font-semibold">01700000000</span> নম্বরে <span className="text-yellow-300 font-semibold">{packages.find(p => p.id === selectedPackage)?.amount} টাকা</span> পাঠান</li>
+                  <li>bKash/Nagad/Rocket এ <span className="text-yellow-300 font-semibold">{bkashNumber}</span> নম্বরে <span className="text-yellow-300 font-semibold">{packages.find(p => p.id === selectedPackage)?.amount} টাকা</span> পাঠান</li>
                   <li>পেমেন্ট করার পর <span className="text-yellow-300 font-semibold">Transaction ID</span> পাবেন</li>
                   <li>নিচে Transaction ID দিন এবং <span className="text-yellow-300 font-semibold">Confirm Purchase</span> ক্লিক করুন</li>
                   <li>Admin verify করার পর টোকেন আপনার account এ যোগ হবে</li>
