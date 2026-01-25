@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabaseClient'
+import { stories } from '@/data/stories'
 
 type Purchase = {
   id: string
@@ -48,6 +50,22 @@ export default function DashboardPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [bkashNumber, setBkashNumber] = useState('01700000000')
+  const [storiesWithProgress, setStoriesWithProgress] = useState<
+    Array<{
+      storyId: string
+      title: string
+      description: string
+      progress: {
+        currentChapterId: string
+        unlockedChapters: string[]
+        progressPercent: number
+        unlockedCount: number
+        totalChapters: number
+        lastReadAt: string
+      } | null
+    }>
+  >([])
+  const router = useRouter()
 
   const loadSession = async () => {
     const supabase = getSupabaseClient()
@@ -107,11 +125,46 @@ export default function DashboardPage() {
     }
   }
 
+  const loadStoriesProgress = async (token: string | null, deviceId: string | null) => {
+    if (!token && !deviceId) {
+      return
+    }
+
+    try {
+      const url = token ? '/api/progress/all' : `/api/progress/all?deviceId=${deviceId}`
+      const response = await fetch(url, {
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setStoriesWithProgress(data.stories || [])
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+  }
+
+  const getDeviceId = () => {
+    if (typeof window === 'undefined') return null
+    let deviceId = localStorage.getItem('device-id')
+    if (!deviceId) {
+      deviceId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `device-${Date.now()}-${Math.random().toString(16).slice(2)}`
+      localStorage.setItem('device-id', deviceId)
+    }
+    return deviceId
+  }
+
   useEffect(() => {
     const init = async () => {
       const token = await loadSession()
       await loadBalance(token)
       await loadBkashNumber()
+      const deviceId = getDeviceId()
+      await loadStoriesProgress(token, deviceId)
       setLoading(false)
     }
     init()
@@ -201,6 +254,78 @@ export default function DashboardPage() {
         <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6">
           <h2 className="text-xl font-semibold mb-4">Token Balance</h2>
           <div className="text-3xl font-bold">🪙 {balance ?? 0}</div>
+        </section>
+
+        {/* My Stories Section */}
+        <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">📚 My Stories</h2>
+            <button
+              onClick={async () => {
+                const token = await loadSession()
+                const deviceId = getDeviceId()
+                await loadStoriesProgress(token, deviceId)
+              }}
+              className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-lg text-sm"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {storiesWithProgress.map((story) => {
+              const hasProgress = story.progress !== null
+              const progressPercent = story.progress?.progressPercent || 0
+              const isComplete = progressPercent === 100
+
+              return (
+                <div
+                  key={story.storyId}
+                  className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 space-y-3 hover:border-purple-400 transition-all"
+                >
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">{story.title}</h3>
+                    <p className="text-sm text-gray-400 line-clamp-2">{story.description}</p>
+                  </div>
+
+                  {hasProgress && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-purple-200">
+                          Chapter {story.progress!.unlockedCount} of {story.progress!.totalChapters}
+                        </span>
+                        <span className="text-yellow-200 font-semibold">{progressPercent}%</span>
+                      </div>
+                      <div className="w-full bg-slate-700 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            isComplete ? 'bg-emerald-500' : 'bg-purple-500'
+                          }`}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      {story.progress!.lastReadAt && (
+                        <p className="text-xs text-gray-500">
+                          Last read: {new Date(story.progress!.lastReadAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <Link
+                    href={`/story/${story.storyId}`}
+                    className="block w-full bg-purple-600 hover:bg-purple-500 text-center px-4 py-2 rounded-lg font-medium"
+                  >
+                    {hasProgress ? (isComplete ? 'Re-read Story' : 'Continue Reading') : 'Start Reading'}
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+
+          {storiesWithProgress.length === 0 && (
+            <p className="text-sm text-purple-200 text-center py-4">কোনো story progress নেই। একটি story শুরু করুন!</p>
+          )}
         </section>
 
         <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6 space-y-4">

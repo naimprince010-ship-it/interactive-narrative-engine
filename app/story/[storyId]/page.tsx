@@ -24,8 +24,54 @@ export default function StoryPage() {
 
   const story = getStoryById(storyId)
 
+  // Load progress from database
   useEffect(() => {
-    if (story) {
+    if (!story || (!deviceId && !accessToken)) {
+      if (story) {
+        // Fallback to localStorage if no identity
+        const savedProgress = localStorage.getItem(`story-${storyId}`)
+        if (savedProgress) {
+          const progress = JSON.parse(savedProgress)
+          setCurrentChapterId(progress.currentChapterId || story.startingChapterId)
+          setUnlockedChapters(new Set(progress.unlockedChapters || [story.startingChapterId]))
+        } else {
+          setCurrentChapterId(story.startingChapterId)
+          setUnlockedChapters(new Set([story.startingChapterId]))
+        }
+      }
+      return
+    }
+
+    const loadProgress = async () => {
+      try {
+        const url = accessToken
+          ? `/api/progress?storyId=${storyId}`
+          : `/api/progress?storyId=${storyId}&deviceId=${deviceId}`
+        const response = await fetch(url, {
+          headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined,
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.progress) {
+            setCurrentChapterId(data.progress.currentChapterId || story.startingChapterId)
+            setUnlockedChapters(new Set(data.progress.unlockedChapters || [story.startingChapterId]))
+            // Also save to localStorage as backup
+            localStorage.setItem(
+              `story-${storyId}`,
+              JSON.stringify({
+                currentChapterId: data.progress.currentChapterId,
+                unlockedChapters: data.progress.unlockedChapters,
+              })
+            )
+            return
+          }
+        }
+      } catch (error) {
+        // Fallback to localStorage on error
+      }
+
+      // Fallback to localStorage
       const savedProgress = localStorage.getItem(`story-${storyId}`)
       if (savedProgress) {
         const progress = JSON.parse(savedProgress)
@@ -36,7 +82,9 @@ export default function StoryPage() {
         setUnlockedChapters(new Set([story.startingChapterId]))
       }
     }
-  }, [storyId, story])
+
+    loadProgress()
+  }, [storyId, story, deviceId, accessToken])
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -155,12 +203,34 @@ export default function StoryPage() {
     newUnlocked.add(nextChapterId)
     setUnlockedChapters(newUnlocked)
 
-    // Save progress
+    // Save progress to database and localStorage
     if (story) {
+      const unlockedArray = Array.from(newUnlocked)
+      
+      // Save to localStorage (backup)
       localStorage.setItem(`story-${storyId}`, JSON.stringify({
         currentChapterId: nextChapterId,
-        unlockedChapters: Array.from(newUnlocked),
+        unlockedChapters: unlockedArray,
       }))
+
+      // Save to database (if authenticated or has deviceId)
+      if (deviceId || accessToken) {
+        fetch('/api/progress', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({
+            storyId,
+            currentChapterId: nextChapterId,
+            unlockedChapters: unlockedArray,
+            deviceId,
+          }),
+        }).catch(() => {
+          // Ignore save errors, localStorage backup is enough
+        })
+      }
     }
   }
 
@@ -219,10 +289,32 @@ export default function StoryPage() {
       setCurrentChapterId(pendingChapterId)
 
       if (story) {
+        const unlockedArray = Array.from(newUnlocked)
+        
+        // Save to localStorage (backup)
         localStorage.setItem(`story-${storyId}`, JSON.stringify({
           currentChapterId: pendingChapterId,
-          unlockedChapters: Array.from(newUnlocked),
+          unlockedChapters: unlockedArray,
         }))
+
+        // Save to database
+        if (deviceId || accessToken) {
+          fetch('/api/progress', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({
+              storyId,
+              currentChapterId: pendingChapterId,
+              unlockedChapters: unlockedArray,
+              deviceId,
+            }),
+          }).catch(() => {
+            // Ignore save errors
+          })
+        }
       }
     } catch {
       // Ignore spend failure
