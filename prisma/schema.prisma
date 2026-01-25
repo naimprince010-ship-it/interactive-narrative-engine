@@ -1,0 +1,143 @@
+// Prisma Schema for Narrative Multiverse Platform
+// PostgreSQL database with Supabase
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Story templates (base story definitions)
+model Story {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  maxPlayers  Int      @default(3) // Default 3 users per instance
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  instances   StoryInstance[]
+  nodes       StoryNode[]
+  characters  CharacterTemplate[]
+}
+
+// Character templates (available characters per story)
+model CharacterTemplate {
+  id          String   @id @default(cuid())
+  name        String   // Character name (e.g., "আবির", "নীলা")
+  description String   // Character role description
+  storyId     String
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  assignments CharacterAssignment[]
+  
+  @@unique([storyId, name]) // One character name per story
+  @@index([storyId])
+}
+
+// Story instances (active multiverse timelines)
+model StoryInstance {
+  id          String   @id @default(cuid())
+  storyId     String
+  status      String   @default("WAITING") // WAITING, ACTIVE, COMPLETED
+  currentNodeId String? // Current story node ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  
+  // Relations
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  assignments CharacterAssignment[]
+  chats       CharacterChat[]
+  choices     UserChoice[]
+  state       StoryState?
+  
+  @@index([storyId, status])
+  @@index([status])
+}
+
+// Character assignments (user → character mapping, SECRET)
+model CharacterAssignment {
+  id          String   @id @default(cuid())
+  userId      String   // Supabase auth user ID
+  instanceId  String
+  templateId  String
+  isRevealed  Boolean  @default(false) // Character identity revealed?
+  revealedAt  DateTime?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  instance    StoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  template    CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, instanceId]) // One character per user per instance
+  @@unique([instanceId, templateId]) // One user per character per instance
+  @@index([userId])
+  @@index([instanceId])
+}
+
+// Story nodes (branching story structure)
+model StoryNode {
+  id          String   @id @default(cuid())
+  storyId     String
+  nodeKey     String   // Unique key (e.g., "start", "phone_call", "ending_happy")
+  title       String
+  content     String   // Base story content
+  choices     Json     // Array of choices with conditions and next nodes
+  isEnding    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  @@unique([storyId, nodeKey])
+  @@index([storyId])
+}
+
+// Character chat (anonymous messages)
+model CharacterChat {
+  id          String   @id @default(cuid())
+  instanceId  String
+  characterId String  // Character template ID (NOT user ID)
+  message     String
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  instance    StoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@index([instanceId, createdAt])
+}
+
+// User choices (what each user chose)
+model UserChoice {
+  id          String   @id @default(cuid())
+  instanceId  String
+  userId      String   // Hidden from frontend
+  nodeId      String   // Story node where choice was made
+  choiceKey   String   // Which choice option was selected
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  instance    StoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@unique([instanceId, userId, nodeId]) // One choice per user per node
+  @@index([instanceId, nodeId])
+}
+
+// Story state (current state of instance)
+model StoryState {
+  id          String   @id @default(cuid())
+  instanceId  String   @unique
+  currentNodeId String
+  stateData   Json     // Additional state (character positions, flags, etc.)
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  instance    StoryInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+}
