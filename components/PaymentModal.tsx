@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { getSupabaseClient } from '@/lib/supabaseClient'
 
 interface PaymentModalProps {
   onClose: () => void
@@ -72,10 +73,14 @@ export default function PaymentModal({
 
     try {
       const deviceId = getDeviceId()
+      const supabase = getSupabaseClient()
+      const { data } = await supabase.auth.getSession()
+      const accessToken = data.session?.access_token
       const response = await fetch('/api/tokens/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           deviceId,

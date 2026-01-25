@@ -4,7 +4,7 @@ import { getSupabaseServerClient } from '@/lib/supabaseServer'
 export const runtime = 'nodejs'
 
 type PurchaseRequest = {
-  deviceId: string
+  deviceId?: string
   packageId: 'trial' | 'bonus' | 'best'
   trxId?: string
 }
@@ -15,13 +15,39 @@ const PACKAGES = {
   best: { amount: 100, tokens: 1200 },
 } as const
 
-async function getOrCreateWallet(deviceId: string) {
+async function getUserIdFromRequest(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+  if (!token) {
+    return null
+  }
+
   const supabase = getSupabaseServerClient()
-  const { data, error } = await supabase
-    .from('user_wallets')
-    .select('balance')
-    .eq('device_id', deviceId)
-    .maybeSingle()
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data.user) {
+    return null
+  }
+
+  return data.user.id
+}
+
+async function getOrCreateWallet(identity: { userId?: string; deviceId?: string }) {
+  const supabase = getSupabaseServerClient()
+  let query = supabase.from('user_wallets').select('balance')
+
+  if (identity.userId) {
+    query = query.eq('user_id', identity.userId)
+  } else if (identity.deviceId) {
+    query = query.eq('device_id', identity.deviceId)
+  } else {
+    throw new Error('Missing identity')
+  }
+
+  const { data, error } = await query.maybeSingle()
 
   if (error) {
     throw new Error(`Supabase wallet query failed: ${error.message}`)
@@ -33,7 +59,7 @@ async function getOrCreateWallet(deviceId: string) {
 
   const { data: created, error: insertError } = await supabase
     .from('user_wallets')
-    .insert({ device_id: deviceId, balance: 0 })
+    .insert({ device_id: identity.deviceId || null, user_id: identity.userId || null, balance: 0 })
     .select('balance')
     .single()
 
@@ -47,18 +73,26 @@ async function getOrCreateWallet(deviceId: string) {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as PurchaseRequest
-    if (!body.deviceId || !body.packageId || !(body.packageId in PACKAGES)) {
+    const userId = await getUserIdFromRequest(request)
+    const deviceId = body.deviceId
+
+    if (!userId && !deviceId) {
+      return NextResponse.json({ error: 'Missing identity.' }, { status: 400 })
+    }
+
+    if (!body.packageId || !(body.packageId in PACKAGES)) {
       return NextResponse.json({ error: 'Invalid purchase request.' }, { status: 400 })
     }
 
     const pack = PACKAGES[body.packageId]
     const supabase = getSupabaseServerClient()
 
-    const currentBalance = await getOrCreateWallet(body.deviceId)
+    const currentBalance = await getOrCreateWallet({ userId: userId || undefined, deviceId: deviceId || undefined })
     const newBalance = currentBalance + pack.tokens
 
     const { error: purchaseError } = await supabase.from('token_purchases').insert({
-      device_id: body.deviceId,
+      device_id: deviceId || null,
+      user_id: userId || null,
       package_id: body.packageId,
       amount_bdt: pack.amount,
       tokens: pack.tokens,
@@ -69,10 +103,17 @@ export async function POST(request: NextRequest) {
       throw new Error(`Supabase purchase insert failed: ${purchaseError.message}`)
     }
 
-    const { error: walletError } = await supabase
+    let walletUpdate = supabase
       .from('user_wallets')
       .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('device_id', body.deviceId)
+
+    if (userId) {
+      walletUpdate = walletUpdate.eq('user_id', userId)
+    } else if (deviceId) {
+      walletUpdate = walletUpdate.eq('device_id', deviceId)
+    }
+
+    const { error: walletError } = await walletUpdate
 
     if (walletError) {
       throw new Error(`Supabase wallet update failed: ${walletError.message}`)

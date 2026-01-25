@@ -6,6 +6,7 @@ import { getStoryById, getChapterByStoryAndId } from '@/data/stories'
 import { Chapter } from '@/types/story'
 import PaymentModal from '@/components/PaymentModal'
 import Link from 'next/link'
+import { getSupabaseClient } from '@/lib/supabaseClient'
 
 export default function StoryPage() {
   const params = useParams()
@@ -17,6 +18,7 @@ export default function StoryPage() {
   const [chapter, setChapter] = useState<Chapter | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
   const [tokenBalance, setTokenBalance] = useState<number | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   const tokenCost = 10
 
@@ -37,6 +39,16 @@ export default function StoryPage() {
   }, [storyId, story])
 
   useEffect(() => {
+    const fetchSession = async () => {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token || null
+      setAccessToken(token)
+    }
+    fetchSession()
+  }, [])
+
+  useEffect(() => {
     const storedDeviceId = localStorage.getItem('device-id')
     if (storedDeviceId) {
       setDeviceId(storedDeviceId)
@@ -52,11 +64,12 @@ export default function StoryPage() {
   }, [])
 
   useEffect(() => {
-    if (!deviceId) {
+    if (!deviceId && !accessToken) {
       return
     }
 
-    const cached = localStorage.getItem(`token-balance-${deviceId}`)
+    const cacheKey = accessToken ? `token-balance-user` : `token-balance-${deviceId}`
+    const cached = cacheKey ? localStorage.getItem(cacheKey) : null
     if (cached) {
       const parsed = Number(cached)
       if (!Number.isNaN(parsed)) {
@@ -64,7 +77,10 @@ export default function StoryPage() {
       }
     }
 
-    fetch(`/api/tokens?deviceId=${deviceId}`)
+    const url = accessToken ? '/api/tokens' : `/api/tokens?deviceId=${deviceId}`
+    fetch(url, {
+      headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined,
+    })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(await response.text())
@@ -74,13 +90,15 @@ export default function StoryPage() {
       .then((data) => {
         if (typeof data.balance === 'number') {
           setTokenBalance(data.balance)
-          localStorage.setItem(`token-balance-${deviceId}`, String(data.balance))
+          if (cacheKey) {
+            localStorage.setItem(cacheKey, String(data.balance))
+          }
         }
       })
       .catch(() => {
         // Ignore fetch errors for now
       })
-  }, [deviceId])
+  }, [accessToken, deviceId])
 
   useEffect(() => {
     if (currentChapterId && story) {
@@ -93,7 +111,7 @@ export default function StoryPage() {
     const nextChapter = getChapterByStoryAndId(storyId, nextChapterId)
     
     if (nextChapter?.isPremium && !unlockedChapters.has(nextChapterId)) {
-      if (!deviceId || tokenBalance === null || tokenBalance < tokenCost) {
+      if ((!deviceId && !accessToken) || tokenBalance === null || tokenBalance < tokenCost) {
         setPendingChapterId(nextChapterId)
         setShowPaymentModal(true)
         return
@@ -104,6 +122,7 @@ export default function StoryPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
           },
           body: JSON.stringify({
             action: 'spend',
@@ -119,7 +138,10 @@ export default function StoryPage() {
         const data = await response.json()
         if (typeof data.balance === 'number') {
           setTokenBalance(data.balance)
-          localStorage.setItem(`token-balance-${deviceId}`, String(data.balance))
+          const cacheKey = accessToken ? 'token-balance-user' : `token-balance-${deviceId}`
+          if (cacheKey) {
+            localStorage.setItem(cacheKey, String(data.balance))
+          }
         }
       } catch {
         setPendingChapterId(nextChapterId)
@@ -143,12 +165,15 @@ export default function StoryPage() {
   }
 
   const handlePaymentSuccess = async (balance: number) => {
-    if (!deviceId) {
+    if (!deviceId && !accessToken) {
       return
     }
 
     setTokenBalance(balance)
-    localStorage.setItem(`token-balance-${deviceId}`, String(balance))
+    const cacheKey = accessToken ? 'token-balance-user' : `token-balance-${deviceId}`
+    if (cacheKey) {
+      localStorage.setItem(cacheKey, String(balance))
+    }
 
     if (!pendingChapterId) {
       setShowPaymentModal(false)
@@ -166,6 +191,7 @@ export default function StoryPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           action: 'spend',
@@ -181,7 +207,10 @@ export default function StoryPage() {
       const data = await response.json()
       if (typeof data.balance === 'number') {
         setTokenBalance(data.balance)
-        localStorage.setItem(`token-balance-${deviceId}`, String(data.balance))
+        const spendCacheKey = accessToken ? 'token-balance-user' : `token-balance-${deviceId}`
+        if (spendCacheKey) {
+          localStorage.setItem(spendCacheKey, String(data.balance))
+        }
       }
 
       const newUnlocked = new Set(unlockedChapters)

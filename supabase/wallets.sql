@@ -3,14 +3,16 @@
 
 create table if not exists public.user_wallets (
   id uuid primary key default gen_random_uuid(),
-  device_id text not null unique,
+  user_id text unique,
+  device_id text unique,
   balance integer not null default 0,
   updated_at timestamptz not null default now()
 );
 
 create table if not exists public.token_purchases (
   id uuid primary key default gen_random_uuid(),
-  device_id text not null,
+  user_id text,
+  device_id text,
   package_id text not null,
   amount_bdt integer not null,
   tokens integer not null,
@@ -21,6 +23,7 @@ create table if not exists public.token_purchases (
 );
 
 create index if not exists token_purchases_device_id_idx on public.token_purchases (device_id);
+create index if not exists token_purchases_user_id_idx on public.token_purchases (user_id);
 create index if not exists token_purchases_package_id_idx on public.token_purchases (package_id);
 
 alter table public.user_wallets enable row level security;

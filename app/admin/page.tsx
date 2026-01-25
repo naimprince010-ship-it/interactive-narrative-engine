@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 
 type Purchase = {
   id: string
+  user_id?: string | null
   device_id: string
   package_id: string
   amount_bdt: number
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [token, setToken] = useState('')
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [deviceId, setDeviceId] = useState('')
+  const [userId, setUserId] = useState('')
   const [tokenDelta, setTokenDelta] = useState('100')
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -79,8 +81,8 @@ export default function AdminPage() {
   }
 
   const adjustWallet = async () => {
-    if (!token || !deviceId) {
-      setMessage('Admin token এবং device ID দিন')
+    if (!token || (!deviceId && !userId)) {
+      setMessage('Admin token এবং user ID/device ID দিন')
       return
     }
 
@@ -98,7 +100,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'x-admin-token': token,
         },
-        body: JSON.stringify({ deviceId, tokens }),
+        body: JSON.stringify({ deviceId: deviceId || null, userId: userId || null, tokens }),
       })
       if (!response.ok) {
         throw new Error(await response.text())
@@ -110,12 +112,6 @@ export default function AdminPage() {
       setMessage(text)
     }
   }
-
-  useEffect(() => {
-    if (token) {
-      fetchPurchases()
-    }
-  }, [])
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
@@ -156,6 +152,12 @@ export default function AdminPage() {
               className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-white"
             />
             <input
+              value={userId}
+              onChange={(event) => setUserId(event.target.value)}
+              placeholder="User ID (auth uid)"
+              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-white"
+            />
+            <input
               value={tokenDelta}
               onChange={(event) => setTokenDelta(event.target.value)}
               placeholder="Tokens (e.g. 100)"
@@ -186,7 +188,7 @@ export default function AdminPage() {
                     <span className="text-xs text-purple-200">{purchase.created_at}</span>
                   </div>
                   <div className="text-sm text-purple-100">
-                    Device: {purchase.device_id} | Trx: {purchase.trx_id || 'N/A'}
+                    User: {purchase.user_id || 'N/A'} | Device: {purchase.device_id || 'N/A'} | Trx: {purchase.trx_id || 'N/A'}
                   </div>
                   <div className="text-sm text-purple-100">
                     {purchase.amount_bdt} BDT → {purchase.tokens} tokens

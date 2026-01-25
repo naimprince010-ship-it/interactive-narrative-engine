@@ -108,6 +108,7 @@ Token packs:
 - 100 BDT → 1200 tokens (20% bonus)
 
 If you use Supabase, apply the wallet schema in `supabase/wallets.sql`.
+If you already ran it, apply `supabase/wallets_user.sql` for user-auth wallets.
 
 ### Admin Verification Dashboard
 
@@ -118,6 +119,15 @@ ADMIN_DASH_TOKEN=
 ```
 
 If you already ran `wallets.sql`, run `supabase/wallets_admin.sql` to add verification columns.
+
+### User Dashboard (Email Login)
+
+Users can log in with magic link email to view balance and buy tokens:
+
+- `/login` for email login
+- `/dashboard` to view token balance and purchases
+
+Make sure Supabase Auth email provider is enabled and Site URL points to your domain.
 
 ### bKash Production Checklist
 

@@ -45,9 +45,10 @@ export async function POST(request: NextRequest) {
     assertAdmin(request)
     const body = await request.json()
     const deviceId = body?.deviceId as string | undefined
+    const userId = body?.userId as string | undefined
     const tokens = Number(body?.tokens)
 
-    if (!deviceId || !Number.isFinite(tokens) || tokens === 0) {
+    if ((!deviceId && !userId) || !Number.isFinite(tokens) || tokens === 0) {
       return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
     }
 
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     const { data: wallet, error: readError } = await supabase
       .from('user_wallets')
       .select('balance')
-      .eq('device_id', deviceId)
+      .eq(userId ? 'user_id' : 'device_id', userId || deviceId)
       .maybeSingle()
 
     if (readError) {
@@ -67,7 +68,12 @@ export async function POST(request: NextRequest) {
 
     const { error: upsertError } = await supabase
       .from('user_wallets')
-      .upsert({ device_id: deviceId, balance: newBalance, updated_at: new Date().toISOString() }, { onConflict: 'device_id' })
+      .upsert({
+        device_id: deviceId || null,
+        user_id: userId || null,
+        balance: newBalance,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: userId ? 'user_id' : 'device_id' })
 
     if (upsertError) {
       throw new Error(`Supabase wallet update failed: ${upsertError.message}`)

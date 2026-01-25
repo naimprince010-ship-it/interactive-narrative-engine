@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseServerClient()
     const { data, error } = await supabase
       .from('token_purchases')
-      .select('id, device_id, package_id, amount_bdt, tokens, trx_id, verified, created_at')
+      .select('id, user_id, device_id, package_id, amount_bdt, tokens, trx_id, verified, created_at')
       .order('created_at', { ascending: false })
       .limit(50)
 
