@@ -377,10 +377,9 @@ export default function StoryPage() {
                     <button
                       key={choice.id}
                       onClick={() => handleChoiceClick(choice.nextChapterId)}
-                      disabled={isLocked}
                       className={`w-full text-left p-4 rounded-lg transition-all ${
                         isLocked
-                          ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
+                          ? 'bg-gray-700/50 text-gray-400 hover:bg-gray-700/70 cursor-pointer'
                           : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-medium shadow-lg hover:scale-105'
                       }`}
                     >
