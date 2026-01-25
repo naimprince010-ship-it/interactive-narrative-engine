@@ -369,9 +369,6 @@ export default function StoryPage() {
                   const isLocked =
                     nextChapter?.isPremium &&
                     !unlockedChapters.has(choice.nextChapterId)
-                  const displayText = isLocked
-                    ? 'পরের পাতা উল্টান (১০ টোকেন লাগবে)'
-                    : choice.text
                   
                   return (
                     <button
@@ -383,10 +380,15 @@ export default function StoryPage() {
                           : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-medium shadow-lg hover:scale-105'
                       }`}
                     >
-                      {displayText}
-                      {isLocked && (
-                        <span className="ml-2 text-yellow-400">🔒</span>
-                      )}
+                      <div className="flex items-center justify-between">
+                        <span>{choice.text}</span>
+                        {isLocked && (
+                          <span className="ml-2 text-yellow-400 flex items-center gap-1">
+                            <span>🔒</span>
+                            <span className="text-xs">(১০ টোকেন লাগবে)</span>
+                          </span>
+                        )}
+                      </div>
                     </button>
                   )
                 })}
