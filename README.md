@@ -120,14 +120,26 @@ ADMIN_DASH_TOKEN=
 
 If you already ran `wallets.sql`, run `supabase/wallets_admin.sql` to add verification columns.
 
-### User Dashboard (Email Login)
+### User Dashboard (Email/Password + Gmail OAuth)
 
-Users can log in with magic link email to view balance and buy tokens:
+Users can create accounts and log in to view balance and buy tokens:
 
-- `/login` for email login
+- `/login` for signup/login (email + password or Gmail OAuth)
 - `/dashboard` to view token balance and purchases
 
-Make sure Supabase Auth email provider is enabled and Site URL points to your domain.
+**Supabase Auth Setup:**
+1. Go to Supabase Dashboard → Authentication → Providers
+2. Enable **Email** provider (for email/password signup/login)
+3. Enable **Google** provider (for Gmail OAuth)
+   - Add Google OAuth credentials (Client ID & Secret from Google Cloud Console)
+4. Set **Site URL** to your production domain (e.g., `https://narrativeengine.vercel.app`)
+5. Add **Redirect URLs**: `https://narrativeengine.vercel.app/dashboard`
+
+**User Data Isolation:**
+Each user has isolated data based on their `user_id`. When a user signs up/logs in:
+- A wallet is created/retrieved for that `user_id`
+- Token purchases are linked to that `user_id`
+- 100 users = 100 separate wallets and purchase histories
 
 ### bKash Production Checklist
 
