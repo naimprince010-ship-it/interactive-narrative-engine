@@ -94,12 +94,12 @@ export default function PaymentModal({
         throw new Error(errorText || 'Purchase failed.')
       }
 
-      const data = await response.json()
-      if (typeof data.balance !== 'number') {
+      const result = await response.json()
+      if (typeof result.balance !== 'number') {
         throw new Error('Balance missing from response.')
       }
 
-      onSuccess(data.balance)
+      onSuccess(result.balance)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Payment failed.'
       setErrorMessage(message)
