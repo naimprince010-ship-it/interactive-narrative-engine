@@ -12,6 +12,19 @@ export default function Home() {
             Embark on epic adventures where your choices shape the story
           </p>
           
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl mb-8">
+            <h2 className="text-3xl font-semibold text-white mb-4">🌌 Multiverse Stories</h2>
+            <p className="text-purple-200 mb-6">
+              Join interactive stories where multiple players shape the narrative together. Each player gets assigned a secret character!
+            </p>
+            <Link
+              href="/multiverse"
+              className="inline-block bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-all shadow-lg hover:shadow-xl mb-8"
+            >
+              🎮 Join Multiverse Stories
+            </Link>
+          </div>
+
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
             <h2 className="text-3xl font-semibold text-white mb-6">Featured Stories</h2>
             <div className="grid md:grid-cols-3 gap-6">
