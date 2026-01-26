@@ -48,10 +48,23 @@ export async function joinStory(
       .eq('user_id', userId)
       .single()
 
+    // Type-safe character template extraction
+    if (!character) {
+      throw new Error('Character assignment not found')
+    }
+
+    const template = Array.isArray(character.character_templates)
+      ? character.character_templates[0]
+      : character.character_templates
+
+    if (!template) {
+      throw new Error('Character template not found')
+    }
+
     return {
       instanceId: instance!.id,
-      characterName: character!.character_templates.name,
-      characterId: character!.character_templates.id,
+      characterName: template.name || '',
+      characterId: template.id || '',
       currentNodeId: instance!.current_node_id,
       instanceStatus: instance!.status as 'WAITING' | 'ACTIVE' | 'COMPLETED',
       message: 'Already in active story instance',
