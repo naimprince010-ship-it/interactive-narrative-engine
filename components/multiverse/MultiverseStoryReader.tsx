@@ -23,6 +23,7 @@ type InstanceData = {
     status: string
     currentNodeId: string | null
     createdAt: string
+    maxPlayers: number
   }
   characters: Array<{ name: string; id: string; isBot?: boolean }>
   myCharacter: {
