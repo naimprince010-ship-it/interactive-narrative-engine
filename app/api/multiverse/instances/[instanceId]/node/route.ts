@@ -35,7 +35,7 @@ export async function GET(
 
     const instanceId = params.instanceId
     const { searchParams } = new URL(request.url)
-    const nodeId = searchParams.get('nodeId')
+    const nodeId = searchParams.get('nodeId') || searchParams.get('node_id')
 
     if (!nodeId) {
       return NextResponse.json({ error: 'Missing nodeId' }, { status: 400 })
