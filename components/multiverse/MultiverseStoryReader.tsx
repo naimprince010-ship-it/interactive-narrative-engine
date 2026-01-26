@@ -53,10 +53,13 @@ export default function MultiverseStoryReader({
   useEffect(() => {
     if (!instanceData.instance.currentNodeId) {
       setLoading(false)
+      setCurrentNode(null)
+      setUserChoiceMade(null)
       return
     }
 
     const loadNode = async () => {
+      setLoading(true)
       try {
         // TODO: Create API endpoint to get node with character-specific content
         const response = await fetch(
@@ -87,7 +90,13 @@ export default function MultiverseStoryReader({
     }
 
     loadNode()
-  }, [instanceId, instanceData.instance.currentNodeId, accessToken])
+    
+    // Poll for node updates every 2 seconds when story is active
+    if (instanceData.instance.status === 'ACTIVE') {
+      const interval = setInterval(loadNode, 2000)
+      return () => clearInterval(interval)
+    }
+  }, [instanceId, instanceData.instance.currentNodeId, instanceData.instance.status, accessToken])
 
   const handleChoiceClick = async (choiceKey: string) => {
     if (!currentNode || !accessToken || submittingChoice || userChoiceMade) return
@@ -122,6 +131,36 @@ export default function MultiverseStoryReader({
       } else {
         // Success - mark choice as made
         setUserChoiceMade(choiceKey)
+        
+        // Force reload node after a short delay to check for story progression
+        setTimeout(() => {
+          if (instanceData.instance.currentNodeId) {
+            const loadNode = async () => {
+              try {
+                const response = await fetch(
+                  `/api/multiverse/instances/${instanceId}/node?nodeId=${instanceData.instance.currentNodeId}`,
+                  {
+                    headers: accessToken
+                      ? { Authorization: `Bearer ${accessToken}` }
+                      : {},
+                  }
+                )
+                if (response.ok) {
+                  const data = await response.json()
+                  setCurrentNode(data.node)
+                  if (data.userChoice) {
+                    setUserChoiceMade(data.userChoice.choice_key)
+                  } else {
+                    setUserChoiceMade(null)
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to reload node:', error)
+              }
+            }
+            loadNode()
+          }
+        }, 3000) // Wait 3 seconds for bots to make choices
       }
       // Node will update via polling
     } catch (error) {
