@@ -73,6 +73,32 @@ export async function GET(
       .eq('user_id', userId)
       .single()
 
+    // Type-safe character mapping
+    const formattedCharacters = (characters || []).map((c: any) => {
+      const template = Array.isArray(c.character_templates)
+        ? c.character_templates[0]
+        : c.character_templates
+      return {
+        name: template?.name || '',
+        id: template?.id || '',
+      }
+    })
+
+    // Type-safe user character
+    const formattedUserCharacter = userCharacter
+      ? (() => {
+          const template = Array.isArray(userCharacter.character_templates)
+            ? userCharacter.character_templates[0]
+            : userCharacter.character_templates
+          return {
+            name: template?.name || '',
+            id: template?.id || '',
+            description: template?.description || '',
+            isRevealed: userCharacter.is_revealed || false,
+          }
+        })()
+      : null
+
     return NextResponse.json({
       instance: {
         id: instance.id,
@@ -81,18 +107,8 @@ export async function GET(
         currentNodeId: instance.current_node_id,
         createdAt: instance.created_at,
       },
-      characters: (characters || []).map((c) => ({
-        name: c.character_templates.name,
-        id: c.character_templates.id,
-      })),
-      myCharacter: userCharacter
-        ? {
-            name: userCharacter.character_templates.name,
-            id: userCharacter.character_templates.id,
-            description: userCharacter.character_templates.description,
-            isRevealed: userCharacter.is_revealed,
-          }
-        : null,
+      characters: formattedCharacters,
+      myCharacter: formattedUserCharacter,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get instance'
