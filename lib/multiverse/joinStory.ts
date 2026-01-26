@@ -25,17 +25,17 @@ export async function joinStory(
 ): Promise<JoinStoryResult> {
   const supabase = getSupabaseServerClient()
 
-  // Step 1: Check if user already in an active instance of this story
+  // Step 1: Check if user already in ANY instance of this story (WAITING or ACTIVE)
   const { data: existingAssignment } = await supabase
     .from('character_assignments')
-    .select('instance_id, story_instances!inner(status)')
+    .select('instance_id, story_instances!inner(status, story_id)')
     .eq('user_id', userId)
     .eq('story_instances.story_id', storyId)
-    .eq('story_instances.status', 'ACTIVE')
+    .in('story_instances.status', ['WAITING', 'ACTIVE'])
     .maybeSingle()
 
   if (existingAssignment) {
-    // User already in active instance, return that
+    // User already in an instance, return that
     const { data: instance } = await supabase
       .from('story_instances')
       .select('id, current_node_id, status')
@@ -68,7 +68,9 @@ export async function joinStory(
       characterId: template.id || '',
       currentNodeId: instance!.current_node_id,
       instanceStatus: instance!.status as 'WAITING' | 'ACTIVE' | 'COMPLETED',
-      message: 'Already in active story instance',
+      message: instance!.status === 'ACTIVE'
+        ? 'Already in active story instance'
+        : 'Already in story instance (waiting for players)',
     }
   }
 
