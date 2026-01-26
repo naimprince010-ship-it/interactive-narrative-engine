@@ -35,17 +35,19 @@ export async function joinStory(
     .maybeSingle()
 
   if (existingAssignment) {
-    // User already in an instance, return that
+    // User already in an instance, check if we need to fill with bots
+    const existingInstanceId = existingAssignment.instance_id
+    
     const { data: instance } = await supabase
       .from('story_instances')
-      .select('id, current_node_id, status')
-      .eq('id', existingAssignment.instance_id)
+      .select('id, current_node_id, status, story_id')
+      .eq('id', existingInstanceId)
       .single()
 
     const { data: character } = await supabase
       .from('character_assignments')
       .select('character_templates!inner(name, id)')
-      .eq('instance_id', existingAssignment.instance_id)
+      .eq('instance_id', existingInstanceId)
       .eq('user_id', userId)
       .single()
 
@@ -60,6 +62,132 @@ export async function joinStory(
 
     if (!template) {
       throw new Error('Character template not found')
+    }
+
+    // If instance is WAITING, try to fill with bots
+    if (instance?.status === 'WAITING') {
+      const { data: story } = await supabase
+        .from('stories')
+        .select('id, max_players')
+        .eq('id', instance.story_id)
+        .single()
+
+      if (story) {
+        const { count: currentPlayerCount } = await supabase
+          .from('character_assignments')
+          .select('*', { count: 'exact', head: true })
+          .eq('instance_id', existingInstanceId)
+
+        const slotsRemaining = story.max_players - (currentPlayerCount || 0)
+
+        if (slotsRemaining > 0) {
+          console.log(`[joinStory] User in existing WAITING instance, filling ${slotsRemaining} slot(s) with bots`)
+          
+          // Get remaining unassigned characters
+          const { data: allAssignedChars } = await supabase
+            .from('character_assignments')
+            .select('template_id')
+            .eq('instance_id', existingInstanceId)
+
+          const allAssignedIds = (allAssignedChars || []).map((a) => a.template_id)
+
+          // Get all characters for the story
+          const { data: allCharacters } = await supabase
+            .from('character_templates')
+            .select('id, name')
+            .eq('story_id', instance.story_id)
+
+          // Filter out already assigned characters
+          const remainingCharacters = (allCharacters || []).filter(
+            (char) => !allAssignedIds.includes(char.id)
+          )
+
+          // Assign bots to remaining characters
+          if (remainingCharacters && remainingCharacters.length > 0) {
+            const botsToCreate = Math.min(slotsRemaining, remainingCharacters.length)
+            
+            for (let i = 0; i < botsToCreate; i++) {
+              const botCharacter = remainingCharacters[i]
+              const botUserId = `bot_${existingInstanceId}_${botCharacter.id}`
+
+              const { error: botError } = await supabase
+                .from('character_assignments')
+                .insert({
+                  user_id: botUserId,
+                  instance_id: existingInstanceId,
+                  template_id: botCharacter.id,
+                  is_revealed: false,
+                })
+
+              if (botError) {
+                console.error(`[joinStory] Failed to create bot ${botUserId}:`, botError)
+              } else {
+                console.log(`[joinStory] Successfully created bot ${botUserId} for character ${botCharacter.name}`)
+              }
+            }
+
+            // Check if instance is now full and activate
+            const { count: finalPlayerCount } = await supabase
+              .from('character_assignments')
+              .select('*', { count: 'exact', head: true })
+              .eq('instance_id', existingInstanceId)
+
+            if (finalPlayerCount === story.max_players) {
+              await supabase
+                .from('story_instances')
+                .update({ status: 'ACTIVE' })
+                .eq('id', existingInstanceId)
+
+              // Set starting node if not set
+              const { data: updatedInstance } = await supabase
+                .from('story_instances')
+                .select('current_node_id')
+                .eq('id', existingInstanceId)
+                .single()
+
+              if (!updatedInstance?.current_node_id) {
+                const { data: startNode } = await supabase
+                  .from('story_nodes')
+                  .select('id')
+                  .eq('story_id', instance.story_id)
+                  .eq('node_key', 'start')
+                  .maybeSingle()
+
+                if (startNode?.id) {
+                  const startNodeId = startNode.id
+                  await supabase
+                    .from('story_instances')
+                    .update({ current_node_id: startNodeId })
+                    .eq('id', existingInstanceId)
+
+                  const nodeId = startNode.id as string
+                  setTimeout(() => {
+                    processBotChoices(existingInstanceId, nodeId).catch((error) => {
+                      console.error('Bot choice processing error:', error)
+                    })
+                  }, 2000)
+                }
+              }
+
+              // Refresh instance data
+              const { data: refreshedInstance } = await supabase
+                .from('story_instances')
+                .select('id, current_node_id, status')
+                .eq('id', existingInstanceId)
+                .single()
+
+              return {
+                instanceId: refreshedInstance!.id,
+                characterName: template.name || '',
+                characterId: template.id || '',
+                currentNodeId: refreshedInstance!.current_node_id,
+                instanceStatus: refreshedInstance!.status as 'WAITING' | 'ACTIVE' | 'COMPLETED',
+                message: 'Story instance activated! All players joined.',
+              }
+            }
+          }
+        }
+      }
     }
 
     return {
@@ -204,11 +332,13 @@ export async function joinStory(
     if (remainingCharacters && remainingCharacters.length > 0) {
       const botsToCreate = Math.min(slotsRemaining, remainingCharacters.length)
       
+      console.log(`[joinStory] Creating ${botsToCreate} bot(s) for instance ${targetInstanceId}`)
+      
       for (let i = 0; i < botsToCreate; i++) {
         const botCharacter = remainingCharacters[i]
         const botUserId = `bot_${targetInstanceId}_${botCharacter.id}`
 
-        await supabase
+        const { error: botError } = await supabase
           .from('character_assignments')
           .insert({
             user_id: botUserId,
@@ -216,7 +346,15 @@ export async function joinStory(
             template_id: botCharacter.id,
             is_revealed: false,
           })
+
+        if (botError) {
+          console.error(`[joinStory] Failed to create bot ${botUserId}:`, botError)
+        } else {
+          console.log(`[joinStory] Successfully created bot ${botUserId} for character ${botCharacter.name}`)
+        }
       }
+    } else {
+      console.log(`[joinStory] No remaining characters available for bots. Remaining: ${remainingCharacters?.length || 0}, Slots: ${slotsRemaining}`)
     }
   }
 
