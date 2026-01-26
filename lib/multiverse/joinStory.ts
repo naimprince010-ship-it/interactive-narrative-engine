@@ -249,7 +249,7 @@ export async function joinStory(
         .eq('node_key', 'start')
         .maybeSingle()
 
-      if (startNode) {
+      if (startNode && startNode.id) {
         await supabase
           .from('story_instances')
           .update({ current_node_id: startNode.id })
