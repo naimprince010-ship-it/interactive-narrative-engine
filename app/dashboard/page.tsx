@@ -256,6 +256,22 @@ export default function DashboardPage() {
           <div className="text-3xl font-bold">🪙 {balance ?? 0}</div>
         </section>
 
+        {/* Multiverse Stories Section */}
+        <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">🌌 Multiverse Stories</h2>
+          </div>
+          <p className="text-purple-200 text-sm mb-4">
+            Join interactive stories where multiple players shape the narrative together. Each player gets assigned a secret character!
+          </p>
+          <Link
+            href="/multiverse"
+            className="block w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-center px-6 py-3 rounded-lg font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
+          >
+            🎮 Join Multiverse Stories
+          </Link>
+        </section>
+
         {/* My Stories Section */}
         <section className="bg-white/10 border border-purple-500/30 rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
