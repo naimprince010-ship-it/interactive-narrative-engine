@@ -66,6 +66,15 @@ export async function GET(
       return NextResponse.json({ error: 'Node not found' }, { status: 404 })
     }
 
+    // Check if user already made a choice for this node
+    const { data: userChoice } = await supabase
+      .from('user_choices')
+      .select('choice_key')
+      .eq('instance_id', instanceId)
+      .eq('user_id', userId)
+      .eq('node_id', nodeId)
+      .maybeSingle()
+
     // TODO: Filter content based on character perspective
     // For now, return node as-is
 
@@ -78,6 +87,7 @@ export async function GET(
         choices: node.choices,
         is_ending: node.is_ending,
       },
+      userChoice: userChoice ? { choice_key: userChoice.choice_key } : null,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get node'

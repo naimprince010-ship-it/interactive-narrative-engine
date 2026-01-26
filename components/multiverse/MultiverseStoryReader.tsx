@@ -47,6 +47,8 @@ export default function MultiverseStoryReader({
 }: Props) {
   const [currentNode, setCurrentNode] = useState<StoryNode | null>(null)
   const [loading, setLoading] = useState(true)
+  const [submittingChoice, setSubmittingChoice] = useState(false)
+  const [userChoiceMade, setUserChoiceMade] = useState<string | null>(null)
 
   useEffect(() => {
     if (!instanceData.instance.currentNodeId) {
@@ -69,6 +71,13 @@ export default function MultiverseStoryReader({
         if (response.ok) {
           const data = await response.json()
           setCurrentNode(data.node)
+          
+          // Check if user already made a choice for this node
+          if (data.userChoice) {
+            setUserChoiceMade(data.userChoice.choice_key)
+          } else {
+            setUserChoiceMade(null)
+          }
         }
       } catch (error) {
         console.error('Failed to load node:', error)
@@ -81,7 +90,9 @@ export default function MultiverseStoryReader({
   }, [instanceId, instanceData.instance.currentNodeId, accessToken])
 
   const handleChoiceClick = async (choiceKey: string) => {
-    if (!currentNode || !accessToken) return
+    if (!currentNode || !accessToken || submittingChoice || userChoiceMade) return
+
+    setSubmittingChoice(true)
 
     try {
       const response = await fetch(
@@ -101,12 +112,23 @@ export default function MultiverseStoryReader({
 
       if (!response.ok) {
         const data = await response.json()
-        alert(data.error || 'Failed to submit choice')
+        // Don't show alert for "already submitted" - it's expected if user double-clicks
+        if (data.error && !data.error.includes('already submitted')) {
+          alert(data.error || 'Failed to submit choice')
+        } else if (data.error && data.error.includes('already submitted')) {
+          // Choice was already made, update UI state
+          setUserChoiceMade(choiceKey)
+        }
+      } else {
+        // Success - mark choice as made
+        setUserChoiceMade(choiceKey)
       }
       // Node will update via polling
     } catch (error) {
       console.error('Failed to submit choice:', error)
       alert('Failed to submit choice. Please try again.')
+    } finally {
+      setSubmittingChoice(false)
     }
   }
 
@@ -191,17 +213,46 @@ export default function MultiverseStoryReader({
       {availableChoices.length > 0 && (
         <div className="mt-8">
           <h3 className="text-xl font-semibold text-white mb-4">Your Choices:</h3>
-          <div className="space-y-3">
-            {availableChoices.map((choice) => (
-              <button
-                key={choice.key}
-                onClick={() => handleChoiceClick(choice.key)}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-4 rounded-lg transition-all text-left border border-purple-500/50 hover:border-purple-400"
-              >
-                {choice.text}
-              </button>
-            ))}
-          </div>
+          {userChoiceMade ? (
+            <div className="space-y-3">
+              {availableChoices.map((choice) => (
+                <button
+                  key={choice.key}
+                  disabled
+                  className={`w-full px-6 py-4 rounded-lg transition-all text-left border ${
+                    choice.key === userChoiceMade
+                      ? 'bg-green-600/50 border-green-500/50 text-white cursor-default'
+                      : 'bg-gray-600/30 border-gray-500/30 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {choice.text}
+                  {choice.key === userChoiceMade && (
+                    <span className="ml-2 text-green-300">✓ Submitted</span>
+                  )}
+                </button>
+              ))}
+              <p className="text-purple-200 text-sm mt-4 text-center">
+                Waiting for other players to make their choices...
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {availableChoices.map((choice) => (
+                <button
+                  key={choice.key}
+                  onClick={() => handleChoiceClick(choice.key)}
+                  disabled={submittingChoice}
+                  className={`w-full px-6 py-4 rounded-lg transition-all text-left border ${
+                    submittingChoice
+                      ? 'bg-gray-600/50 border-gray-500/50 text-gray-300 cursor-not-allowed'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white border-purple-500/50 hover:border-purple-400'
+                  }`}
+                >
+                  {submittingChoice ? 'Submitting...' : choice.text}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
