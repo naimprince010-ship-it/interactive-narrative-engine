@@ -186,17 +186,16 @@ export async function joinStory(
 
     const allAssignedIds = (allAssignedChars || []).map((a) => a.template_id)
 
-    // Get remaining unassigned characters
-    let remainingCharactersQuery = supabase
+    // Get all characters for the story
+    const { data: allCharacters } = await supabase
       .from('character_templates')
       .select('id, name')
       .eq('story_id', storyId)
 
-    if (allAssignedIds.length > 0) {
-      remainingCharactersQuery = remainingCharactersQuery.not('id', 'in', `(${allAssignedIds.join(',')})`)
-    }
-
-    const { data: remainingCharacters } = await remainingCharactersQuery
+    // Filter out already assigned characters
+    const remainingCharacters = (allCharacters || []).filter(
+      (char) => !allAssignedIds.includes(char.id)
+    )
 
     // Assign bots to remaining characters
     if (remainingCharacters && remainingCharacters.length > 0) {
