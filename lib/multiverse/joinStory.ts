@@ -251,6 +251,15 @@ export async function joinStory(
           .from('story_instances')
           .update({ current_node_id: startNode.id })
           .eq('id', targetInstanceId)
+
+        // Trigger bot choices for starting node (async, don't wait)
+        import('@/lib/multiverse/botLogic').then(({ processBotChoices }) => {
+          setTimeout(() => {
+            processBotChoices(targetInstanceId, startNode.id).catch((error) => {
+              console.error('Bot choice processing error:', error)
+            })
+          }, 2000) // Wait 2 seconds after story starts
+        })
       }
     }
   }

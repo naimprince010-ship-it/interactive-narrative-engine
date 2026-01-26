@@ -1,0 +1,197 @@
+/**
+ * Bot Logic for Multiverse Stories
+ * Handles automatic choice-making for bot players
+ */
+
+import { getSupabaseServerClient } from '@/lib/supabaseServer'
+
+/**
+ * Process bot choices for a given node
+ * Bots will make choices after a random delay (2-5 seconds) to seem human-like
+ */
+export async function processBotChoices(instanceId: string, nodeId: string) {
+  const supabase = getSupabaseServerClient()
+
+  // Get all bot players in this instance
+  const { data: botAssignments } = await supabase
+    .from('character_assignments')
+    .select('user_id, template_id, character_templates!inner(name, id)')
+    .eq('instance_id', instanceId)
+    .like('user_id', 'bot_%')
+
+  if (!botAssignments || botAssignments.length === 0) {
+    return // No bots in this instance
+  }
+
+  // Get the current node to see available choices
+  const { data: node } = await supabase
+    .from('story_nodes')
+    .select('id, choices')
+    .eq('id', nodeId)
+    .single()
+
+  if (!node || !node.choices) {
+    return
+  }
+
+  const choices = node.choices as Array<{
+    key: string
+    text: string
+    next_node: string
+    character_specific?: string[] | null
+  }>
+
+  // Process each bot's choice
+  for (const botAssignment of botAssignments) {
+    // Check if bot already made a choice for this node
+    const { data: existingChoice } = await supabase
+      .from('user_choices')
+      .select('id')
+      .eq('instance_id', instanceId)
+      .eq('user_id', botAssignment.user_id)
+      .eq('node_id', nodeId)
+      .maybeSingle()
+
+    if (existingChoice) {
+      continue // Bot already made a choice
+    }
+
+    // Get bot's character name
+    const template = Array.isArray(botAssignment.character_templates)
+      ? botAssignment.character_templates[0]
+      : botAssignment.character_templates
+    const botCharacterName = template?.name || ''
+
+    // Filter choices available to this bot's character
+    const availableChoices = choices.filter((choice) => {
+      if (!choice.character_specific || choice.character_specific.length === 0) {
+        return true // Available to all
+      }
+      return choice.character_specific.includes(botCharacterName)
+    })
+
+    if (availableChoices.length === 0) {
+      continue // No choices available for this bot
+    }
+
+    // Random delay (2-5 seconds) to seem human-like
+    const delay = Math.random() * 3000 + 2000 // 2000-5000ms
+    await new Promise((resolve) => setTimeout(resolve, delay))
+
+    // Simple bot logic: Random choice (can be improved with character traits)
+    const randomIndex = Math.floor(Math.random() * availableChoices.length)
+    const selectedChoice = availableChoices[randomIndex]
+
+    // Save bot's choice
+    await supabase
+      .from('user_choices')
+      .insert({
+        instance_id: instanceId,
+        user_id: botAssignment.user_id,
+        node_id: nodeId,
+        choice_key: selectedChoice.key,
+      })
+
+    // Check if all players (including bots) have made choices
+    await checkAndProgressStory(instanceId, nodeId)
+  }
+}
+
+/**
+ * Check if all players made choices, then progress to next node
+ */
+async function checkAndProgressStory(instanceId: string, currentNodeId: string) {
+  const supabase = getSupabaseServerClient()
+
+  // Get instance details
+  const { data: instance } = await supabase
+    .from('story_instances')
+    .select('id, story_id, status')
+    .eq('id', instanceId)
+    .single()
+
+  if (!instance || instance.status !== 'ACTIVE') {
+    return
+  }
+
+  // Get all players (including bots) in this instance
+  const { count: totalPlayers } = await supabase
+    .from('character_assignments')
+    .select('*', { count: 'exact', head: true })
+    .eq('instance_id', instanceId)
+
+  // Get all choices for current node
+  const { count: choiceCount } = await supabase
+    .from('user_choices')
+    .select('*', { count: 'exact', head: true })
+    .eq('instance_id', instanceId)
+    .eq('node_id', currentNodeId)
+
+  // If all players made choices, progress story
+  if (choiceCount === totalPlayers) {
+    // Get current node to find next node
+    const { data: currentNode } = await supabase
+      .from('story_nodes')
+      .select('id, choices, is_ending')
+      .eq('id', currentNodeId)
+      .single()
+
+    if (!currentNode || currentNode.is_ending) {
+      // Story ended
+      await supabase
+        .from('story_instances')
+        .update({ status: 'COMPLETED', completed_at: new Date().toISOString() })
+        .eq('id', instanceId)
+      return
+    }
+
+    // Aggregate choices (simple: majority vote, or first choice if tie)
+    const { data: allChoices } = await supabase
+      .from('user_choices')
+      .select('choice_key')
+      .eq('instance_id', instanceId)
+      .eq('node_id', currentNodeId)
+
+    // Count choice votes
+    const choiceVotes: Record<string, number> = {}
+    allChoices?.forEach((choice) => {
+      choiceVotes[choice.choice_key] = (choiceVotes[choice.choice_key] || 0) + 1
+    })
+
+    // Find most popular choice
+    let nextNodeKey: string | null = null
+    let maxVotes = 0
+    Object.entries(choiceVotes).forEach(([choiceKey, votes]) => {
+      if (votes > maxVotes) {
+        maxVotes = votes
+        const choice = (currentNode.choices as any[]).find((c) => c.key === choiceKey)
+        nextNodeKey = choice?.next_node || null
+      }
+    })
+
+    if (nextNodeKey) {
+      // Find next node by node_key
+      const { data: nextNode } = await supabase
+        .from('story_nodes')
+        .select('id')
+        .eq('story_id', instance.story_id)
+        .eq('node_key', nextNodeKey)
+        .maybeSingle()
+
+      if (nextNode) {
+        // Update instance to next node
+        await supabase
+          .from('story_instances')
+          .update({ current_node_id: nextNode.id })
+          .eq('id', instanceId)
+
+        // Process bot choices for the new node (recursive)
+        setTimeout(() => {
+          processBotChoices(instanceId, nextNode.id).catch((error) => {
+            console.error('Bot choice processing error for next node:', error)
+          })
+        }, 1000) // Wait 1 second before processing next node
+      }
+    }
+  }
+}
