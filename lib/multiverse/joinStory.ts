@@ -250,15 +250,19 @@ export async function joinStory(
         .maybeSingle()
 
       if (startNode?.id) {
-        const startNodeId = startNode.id as string
+        const startNodeId = startNode.id
         await supabase
           .from('story_instances')
           .update({ current_node_id: startNodeId })
           .eq('id', targetInstanceId)
 
         // Trigger bot choices for starting node (async, don't wait)
+        // TypeScript doesn't narrow types in closures, so we use a type assertion
+        // This is safe because we're inside the if (startNode?.id) check
+        const nodeId = startNode.id as string
         setTimeout(() => {
-          processBotChoices(targetInstanceId, startNodeId).catch((error) => {
+          // @ts-expect-error - TypeScript doesn't narrow types in closures, but this is safe
+          processBotChoices(targetInstanceId, nodeId).catch((error) => {
             console.error('Bot choice processing error:', error)
           })
         }, 2000) // Wait 2 seconds after story starts
