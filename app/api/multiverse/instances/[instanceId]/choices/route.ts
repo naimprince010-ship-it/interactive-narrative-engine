@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabaseServer'
-import { processBotChoices } from '@/lib/multiverse/botLogic'
+import { processBotChoices, checkAndProgressStory } from '@/lib/multiverse/botLogic'
 
 export const runtime = 'nodejs'
 
@@ -83,12 +83,39 @@ export async function POST(
       throw new Error(`Failed to save choice: ${choiceError.message}`)
     }
 
-    // Trigger bot choices processing (async, don't wait)
-    processBotChoices(instanceId, nodeId).catch((error) => {
-      console.error('Bot choice processing error:', error)
-    })
+    console.log(`[choices] User ${userId} submitted choice ${choiceKey} for node ${nodeId}`)
 
-    // TODO: Check if all players (including bots) made choices, then progress to next node
+    // Check if all players have made choices (including bots)
+    // This will also trigger bot choices if needed
+    // Get total players count
+    const { count: totalPlayers } = await supabase
+      .from('character_assignments')
+      .select('*', { count: 'exact', head: true })
+      .eq('instance_id', instanceId)
+
+    // Get current choices count
+    const { count: choiceCount } = await supabase
+      .from('user_choices')
+      .select('*', { count: 'exact', head: true })
+      .eq('instance_id', instanceId)
+      .eq('node_id', nodeId)
+
+    console.log(`[choices] Current choices: ${choiceCount}/${totalPlayers} for node ${nodeId}`)
+
+    // If not all choices are in, trigger bot choices
+    if ((choiceCount || 0) < (totalPlayers || 0)) {
+      console.log(`[choices] Triggering bot choices for remaining players...`)
+      // Trigger bot choices processing (async, don't wait)
+      processBotChoices(instanceId, nodeId).catch((error) => {
+        console.error('[choices] Bot choice processing error:', error)
+      })
+    } else {
+      // All choices are in, check and progress story
+      console.log(`[choices] All choices submitted, checking story progression...`)
+      checkAndProgressStory(instanceId, nodeId).catch((error) => {
+        console.error('[choices] Story progression error:', error)
+      })
+    }
 
     return NextResponse.json({ success: true, message: 'Choice submitted' })
   } catch (error) {

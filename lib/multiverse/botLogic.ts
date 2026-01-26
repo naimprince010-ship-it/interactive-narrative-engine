@@ -12,6 +12,8 @@ import { getSupabaseServerClient } from '@/lib/supabaseServer'
 export async function processBotChoices(instanceId: string, nodeId: string) {
   const supabase = getSupabaseServerClient()
 
+  console.log(`[botLogic] Processing bot choices for instance ${instanceId}, node ${nodeId}`)
+
   // Get all bot players in this instance
   const { data: botAssignments } = await supabase
     .from('character_assignments')
@@ -20,8 +22,11 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
     .like('user_id', 'bot_%')
 
   if (!botAssignments || botAssignments.length === 0) {
+    console.log(`[botLogic] No bots found in instance ${instanceId}`)
     return // No bots in this instance
   }
+
+  console.log(`[botLogic] Found ${botAssignments.length} bot(s) in instance ${instanceId}`)
 
   // Get the current node to see available choices
   const { data: node } = await supabase
@@ -83,7 +88,7 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
     const selectedChoice = availableChoices[randomIndex]
 
     // Save bot's choice
-    await supabase
+    const { error: botChoiceError } = await supabase
       .from('user_choices')
       .insert({
         instance_id: instanceId,
@@ -91,6 +96,13 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
         node_id: nodeId,
         choice_key: selectedChoice.key,
       })
+
+    if (botChoiceError) {
+      console.error(`[botLogic] Failed to save bot choice for ${botAssignment.user_id}:`, botChoiceError)
+      continue
+    }
+
+    console.log(`[botLogic] Bot ${botAssignment.user_id} (${botCharacterName}) chose: ${selectedChoice.key}`)
 
     // Check if all players (including bots) have made choices
     await checkAndProgressStory(instanceId, nodeId)
@@ -100,8 +112,10 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
 /**
  * Check if all players made choices, then progress to next node
  */
-async function checkAndProgressStory(instanceId: string, currentNodeId: string) {
+export async function checkAndProgressStory(instanceId: string, currentNodeId: string) {
   const supabase = getSupabaseServerClient()
+
+  console.log(`[botLogic] Checking story progression for instance ${instanceId}, node ${currentNodeId}`)
 
   // Get instance details
   const { data: instance } = await supabase
@@ -111,6 +125,7 @@ async function checkAndProgressStory(instanceId: string, currentNodeId: string) 
     .single()
 
   if (!instance || instance.status !== 'ACTIVE') {
+    console.log(`[botLogic] Instance ${instanceId} is not ACTIVE (status: ${instance?.status})`)
     return
   }
 
@@ -127,8 +142,11 @@ async function checkAndProgressStory(instanceId: string, currentNodeId: string) 
     .eq('instance_id', instanceId)
     .eq('node_id', currentNodeId)
 
+  console.log(`[botLogic] Choices: ${choiceCount}/${totalPlayers} for node ${currentNodeId}`)
+
   // If all players made choices, progress story
   if (choiceCount === totalPlayers) {
+    console.log(`[botLogic] All choices submitted! Progressing story...`)
     // Get current node to find next node
     const { data: currentNode } = await supabase
       .from('story_nodes')
