@@ -5,6 +5,7 @@
 
 import { getSupabaseServerClient } from '@/lib/supabaseServer'
 import { processBotChoices } from '@/lib/multiverse/botLogic'
+import { startBotChatInterval } from '@/lib/multiverse/botChat'
 
 type JoinStoryResult = {
   instanceId: string
@@ -166,6 +167,11 @@ export async function joinStory(
                       console.error('Bot choice processing error:', error)
                     })
                   }, 2000)
+
+                  // Start bot chat interval
+                  if (existingInstanceId) {
+                    startBotChatInterval(existingInstanceId)
+                  }
                 }
               }
 
@@ -404,6 +410,11 @@ export async function joinStory(
             console.error('Bot choice processing error:', error)
           })
         }, 2000) // Wait 2 seconds after story starts
+
+        // Start bot chat interval
+        if (targetInstanceId) {
+          startBotChatInterval(targetInstanceId)
+        }
       }
     }
   }
