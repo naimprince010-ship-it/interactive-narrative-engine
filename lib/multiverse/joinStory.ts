@@ -207,6 +207,10 @@ export async function joinStory(
   }
 
   // Step 8: Get current instance state
+  if (!targetInstanceId) {
+    throw new Error('Failed to get or create instance')
+  }
+
   const { data: finalInstance } = await supabase
     .from('story_instances')
     .select('id, current_node_id, status')
