@@ -250,7 +250,7 @@ export async function joinStory(
         .maybeSingle()
 
       if (startNode?.id) {
-        const startNodeId = startNode.id
+        const startNodeId: string = startNode.id
         await supabase
           .from('story_instances')
           .update({ current_node_id: startNodeId })
