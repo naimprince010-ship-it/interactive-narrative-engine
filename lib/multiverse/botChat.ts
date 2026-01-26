@@ -9,8 +9,13 @@ import { getSupabaseServerClient } from '@/lib/supabaseServer'
  * Process bot chat messages for an instance
  * Bots will send occasional messages to make the game feel more alive
  */
-export async function processBotChat(instanceId: string) {
+export async function processBotChat(instanceId: string, delayMs: number = 0) {
   const supabase = getSupabaseServerClient()
+
+  // Add delay if specified (for human-like response timing)
+  if (delayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+  }
 
   console.log(`[botChat] Processing bot chat for instance ${instanceId}`)
 
@@ -28,30 +33,37 @@ export async function processBotChat(instanceId: string) {
 
   console.log(`[botChat] Found ${botAssignments.length} bot(s) in instance ${instanceId}`)
 
-  // Get recent chat messages to avoid spam
-  const { data: recentMessages } = await supabase
+  // Get recent bot messages to avoid spam (only check bot messages, not user messages)
+  const { data: recentBotMessages } = await supabase
     .from('character_chat')
-    .select('created_at')
+    .select('created_at, character_id, character_templates!inner(name)')
     .eq('instance_id', instanceId)
     .order('created_at', { ascending: false })
-    .limit(10)
+    .limit(5)
 
-  // If there are recent messages (within last 30 seconds), don't spam
+  // Check if a bot sent a message recently (within last 20 seconds)
   const now = new Date()
-  const thirtySecondsAgo = new Date(now.getTime() - 30000)
+  const twentySecondsAgo = new Date(now.getTime() - 20000)
   
-  const hasRecentMessages = recentMessages?.some((msg) => {
+  const hasRecentBotMessage = recentBotMessages?.some((msg: any) => {
     const msgTime = new Date(msg.created_at)
-    return msgTime > thirtySecondsAgo
+    // Check if this message is from a bot character
+    const isBotMessage = botAssignments.some((bot) => {
+      const template = Array.isArray(bot.character_templates)
+        ? bot.character_templates[0]
+        : bot.character_templates
+      return template?.id === msg.character_id
+    })
+    return isBotMessage && msgTime > twentySecondsAgo
   })
 
-  if (hasRecentMessages) {
-    console.log(`[botChat] Recent messages found, skipping bot chat to avoid spam`)
+  if (hasRecentBotMessage) {
+    console.log(`[botChat] Bot sent message recently, skipping to avoid spam`)
     return
   }
 
-  // Random chance for a bot to send a message (30% chance)
-  if (Math.random() > 0.3) {
+  // Higher chance for bot to reply (70% chance when triggered)
+  if (Math.random() > 0.7) {
     console.log(`[botChat] Random chance check failed, skipping bot chat`)
     return
   }

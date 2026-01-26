@@ -128,12 +128,11 @@ export async function POST(
     }
 
     // Trigger bot chat response (async, don't wait)
-    // Bots will respond to user messages after a delay
-    setTimeout(() => {
-      processBotChat(instanceId).catch((error) => {
-        console.error('[chat] Bot chat processing error:', error)
-      })
-    }, 3000 + Math.random() * 2000) // 3-5 seconds delay for bot response
+    // Bots will respond to user messages after a delay (3-5 seconds)
+    const botResponseDelay = 3000 + Math.random() * 2000 // 3-5 seconds
+    processBotChat(instanceId, botResponseDelay).catch((error) => {
+      console.error('[chat] Bot chat processing error:', error)
+    })
 
     return NextResponse.json({
       success: true,
