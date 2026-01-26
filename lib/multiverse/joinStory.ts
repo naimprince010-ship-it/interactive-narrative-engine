@@ -249,15 +249,16 @@ export async function joinStory(
         .eq('node_key', 'start')
         .maybeSingle()
 
-      if (startNode && startNode.id) {
+      if (startNode?.id) {
+        const startNodeId = startNode.id
         await supabase
           .from('story_instances')
-          .update({ current_node_id: startNode.id })
+          .update({ current_node_id: startNodeId })
           .eq('id', targetInstanceId)
 
         // Trigger bot choices for starting node (async, don't wait)
         setTimeout(() => {
-          processBotChoices(targetInstanceId, startNode.id).catch((error) => {
+          processBotChoices(targetInstanceId, startNodeId).catch((error) => {
             console.error('Bot choice processing error:', error)
           })
         }, 2000) // Wait 2 seconds after story starts
