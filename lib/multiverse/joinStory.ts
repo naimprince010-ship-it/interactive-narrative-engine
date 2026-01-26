@@ -4,6 +4,7 @@
  */
 
 import { getSupabaseServerClient } from '@/lib/supabaseServer'
+import { processBotChoices } from '@/lib/multiverse/botLogic'
 
 type JoinStoryResult = {
   instanceId: string
@@ -253,13 +254,11 @@ export async function joinStory(
           .eq('id', targetInstanceId)
 
         // Trigger bot choices for starting node (async, don't wait)
-        import('@/lib/multiverse/botLogic').then(({ processBotChoices }) => {
-          setTimeout(() => {
-            processBotChoices(targetInstanceId, startNode.id).catch((error) => {
-              console.error('Bot choice processing error:', error)
-            })
-          }, 2000) // Wait 2 seconds after story starts
-        })
+        setTimeout(() => {
+          processBotChoices(targetInstanceId, startNode.id).catch((error) => {
+            console.error('Bot choice processing error:', error)
+          })
+        }, 2000) // Wait 2 seconds after story starts
       }
     }
   }
