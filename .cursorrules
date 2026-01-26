@@ -1,0 +1,87 @@
+# Narrative Multiverse Project Rules
+
+## Tech Stack
+- **Framework**: Next.js 14 (App Router)
+- **Database**: PostgreSQL with Prisma ORM
+- **Styling**: Tailwind CSS
+- **Real-time**: Socket.io (for live interactions)
+- **Language**: TypeScript
+
+## Core Philosophy
+
+### Absolute Anonymity
+- No real user names/emails visible in stories
+- Only character names shown in interactions
+- User IDs hidden from frontend
+- Character assignments are secret until reveal
+
+### Perspective-Based UI
+- Story content changes based on assigned character
+- Each user sees story from their character's perspective
+- Choices are character-specific
+- UI adapts to character role
+
+### State Machine Architecture
+- Story progression depends on collective user choices
+- All choices combine (not majority vote)
+- Conflicting choices create new branches
+- Multiple story instances = multiverse timelines
+
+## Naming Conventions
+- **Variables**: camelCase (`userId`, `storyInstance`)
+- **Components**: PascalCase (`StoryReader`, `CharacterChat`)
+- **Database Tables**: snake_case (`story_instances`, `character_assignments`)
+- **API Routes**: kebab-case (`/api/stories/join`)
+
+## Database Rules
+- Always check `character_assignments` before rendering story content
+- Never expose `userId` in frontend chat or story blocks
+- Use `character_id` (from template) for all interactions
+- Story instances track collective state
+
+## Character Assignment Logic
+- **Method**: Availability-based (first come, first serve)
+- **Process**: 
+  1. Check for available instance with empty character slot
+  2. If found, assign character to that instance
+  3. If all instances full, create new instance
+  4. Assign random available character
+- **Secrecy**: User doesn't know their character until reveal
+
+## Choice Aggregation
+- **Method**: All choices combine (not majority)
+- **Result**: Conflicting choices create new story branches
+- **Example**: 
+  - Character A chooses "Yes"
+  - Character B chooses "No"
+  - Result: New branch "Conflicting Path" created
+
+## Story Instance Management
+- **Default Size**: 3 users per instance
+- **Status**: WAITING → ACTIVE → COMPLETED
+- **State**: Tracks current story node for instance
+- **Isolation**: Each instance is independent multiverse
+
+## Character Reveal
+- **Timing**: At story climax/end
+- **Method**: Gradual hints → Full reveal
+- **UI**: "You are [Character Name]" reveal screen
+
+## Security Rules
+- Never expose real user identity in story context
+- All chat messages use character names only
+- Character assignments are server-side only
+- Validate user permissions before story actions
+
+## Code Quality
+- Always use TypeScript strict mode
+- Validate all inputs (Prisma + Zod)
+- Handle errors gracefully
+- Log important events (character assignment, choices)
+- Use Supabase RLS for database security
+
+## Real-time Requirements
+- Story state updates must sync across all users in instance
+- Chat messages broadcast to all instance participants
+- Choice submissions trigger state recalculation
+- Use WebSockets for live updates
