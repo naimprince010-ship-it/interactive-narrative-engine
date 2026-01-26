@@ -48,16 +48,19 @@ export async function GET(
       return NextResponse.json({ error: 'Not part of this instance' }, { status: 403 })
     }
 
-    // Get instance details
+    // Get instance details with story info
     const { data: instance, error: instanceError } = await supabase
       .from('story_instances')
-      .select('id, story_id, status, current_node_id, created_at')
+      .select('id, story_id, status, current_node_id, created_at, stories!inner(max_players)')
       .eq('id', instanceId)
       .single()
 
     if (instanceError || !instance) {
       throw new Error(`Instance not found: ${instanceError?.message}`)
     }
+
+    // Extract max_players from story
+    const maxPlayers = (instance.stories as any)?.max_players || 3
 
     // Get all characters in this instance (without revealing assignments)
     const { data: characters } = await supabase
@@ -106,6 +109,7 @@ export async function GET(
         status: instance.status,
         currentNodeId: instance.current_node_id,
         createdAt: instance.created_at,
+        maxPlayers,
       },
       characters: formattedCharacters,
       myCharacter: formattedUserCharacter,

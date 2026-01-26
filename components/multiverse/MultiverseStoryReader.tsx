@@ -118,15 +118,37 @@ export default function MultiverseStoryReader({
   }
 
   if (!currentNode) {
+    const currentPlayers = instanceData.characters.length
+    const maxPlayers = instanceData.instance.maxPlayers || 3
+    const playersNeeded = maxPlayers - currentPlayers
+
     return (
-      <div className="bg-white/10 backdrop-blur-lg rounded-lg p-8">
+      <div className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-white/20">
         <div className="text-white text-center">
-          <p className="text-xl mb-4">Waiting for story to begin...</p>
-          <p className="text-purple-200">
-            {instanceData.instance.status === 'WAITING'
-              ? 'Waiting for all players to join...'
-              : 'Story is loading...'}
-          </p>
+          {instanceData.instance.status === 'WAITING' ? (
+            <>
+              <div className="text-6xl mb-4">⏳</div>
+              <p className="text-2xl font-bold mb-4">Waiting for Players</p>
+              <div className="bg-purple-900/50 rounded-lg p-4 mb-4 border border-purple-500/50">
+                <p className="text-lg text-purple-200 mb-2">
+                  <span className="text-white font-bold text-2xl">{currentPlayers}</span> / {maxPlayers} players
+                </p>
+                <p className="text-purple-300">
+                  {playersNeeded > 0
+                    ? `${playersNeeded} more player${playersNeeded > 1 ? 's' : ''} needed to start the story`
+                    : 'All players joined! Story starting soon...'}
+                </p>
+              </div>
+              <p className="text-purple-200 text-sm mt-4">
+                Share this page with friends so they can join!
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xl mb-4">Story is loading...</p>
+              <p className="text-purple-200">Please wait...</p>
+            </>
+          )}
         </div>
       </div>
     )

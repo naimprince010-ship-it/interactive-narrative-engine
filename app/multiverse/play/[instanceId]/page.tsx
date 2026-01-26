@@ -15,6 +15,7 @@ type InstanceData = {
     status: string
     currentNodeId: string | null
     createdAt: string
+    maxPlayers: number
   }
   characters: Array<{ name: string; id: string }>
   myCharacter: {
@@ -143,6 +144,26 @@ export default function PlayMultiverseStoryPage() {
             ← Back to Stories
           </Link>
         </div>
+
+        {/* Waiting State - Show when WAITING */}
+        {instanceData.instance.status === 'WAITING' && (
+          <div className="mb-6 bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  ⏳ Waiting for Players
+                </h3>
+                <p className="text-yellow-200">
+                  {instanceData.characters.length} of {instanceData.instance.maxPlayers} players joined
+                </p>
+                <p className="text-yellow-300 text-sm mt-1">
+                  {instanceData.instance.maxPlayers - instanceData.characters.length} more player{instanceData.instance.maxPlayers - instanceData.characters.length > 1 ? 's' : ''} needed to start
+                </p>
+              </div>
+              <div className="text-4xl">⏳</div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
