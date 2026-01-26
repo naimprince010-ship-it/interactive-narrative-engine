@@ -58,8 +58,14 @@ export default function MultiverseStoryReader({
       return
     }
 
+    let isMounted = true
+    let loadingInProgress = false
+
     const loadNode = async () => {
-      setLoading(true)
+      // Prevent multiple simultaneous requests
+      if (loadingInProgress) return
+      loadingInProgress = true
+
       try {
         // TODO: Create API endpoint to get node with character-specific content
         const response = await fetch(
@@ -71,9 +77,15 @@ export default function MultiverseStoryReader({
           }
         )
 
+        if (!isMounted) return
+
         if (response.ok) {
           const data = await response.json()
-          setCurrentNode(data.node)
+          
+          // Only update if node actually changed
+          if (data.node && data.node.id !== currentNode?.id) {
+            setCurrentNode(data.node)
+          }
           
           // Check if user already made a choice for this node
           if (data.userChoice) {
@@ -85,16 +97,33 @@ export default function MultiverseStoryReader({
       } catch (error) {
         console.error('Failed to load node:', error)
       } finally {
-        setLoading(false)
+        loadingInProgress = false
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
+    // Initial load
+    setLoading(true)
     loadNode()
     
-    // Poll for node updates every 2 seconds when story is active
+    // Poll for node updates every 5 seconds when story is active (less frequent to reduce blinking)
+    // Only poll if we don't have a node or if story might have progressed
     if (instanceData.instance.status === 'ACTIVE') {
-      const interval = setInterval(loadNode, 2000)
-      return () => clearInterval(interval)
+      const interval = setInterval(() => {
+        if (isMounted && !loadingInProgress) {
+          loadNode()
+        }
+      }, 5000) // Increased to 5 seconds to reduce blinking
+      return () => {
+        isMounted = false
+        clearInterval(interval)
+      }
+    }
+
+    return () => {
+      isMounted = false
     }
   }, [instanceId, instanceData.instance.currentNodeId, instanceData.instance.status, accessToken])
 
@@ -132,35 +161,8 @@ export default function MultiverseStoryReader({
         // Success - mark choice as made
         setUserChoiceMade(choiceKey)
         
-        // Force reload node after a short delay to check for story progression
-        setTimeout(() => {
-          if (instanceData.instance.currentNodeId) {
-            const loadNode = async () => {
-              try {
-                const response = await fetch(
-                  `/api/multiverse/instances/${instanceId}/node?nodeId=${instanceData.instance.currentNodeId}`,
-                  {
-                    headers: accessToken
-                      ? { Authorization: `Bearer ${accessToken}` }
-                      : {},
-                  }
-                )
-                if (response.ok) {
-                  const data = await response.json()
-                  setCurrentNode(data.node)
-                  if (data.userChoice) {
-                    setUserChoiceMade(data.userChoice.choice_key)
-                  } else {
-                    setUserChoiceMade(null)
-                  }
-                }
-              } catch (error) {
-                console.error('Failed to reload node:', error)
-              }
-            }
-            loadNode()
-          }
-        }, 3000) // Wait 3 seconds for bots to make choices
+        // Note: Node will update via parent polling (every 3 seconds)
+        // No need to force reload here as parent component handles updates
       }
       // Node will update via polling
     } catch (error) {

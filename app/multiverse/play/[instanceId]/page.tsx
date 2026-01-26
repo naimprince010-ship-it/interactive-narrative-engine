@@ -92,8 +92,35 @@ export default function PlayMultiverseStoryPage() {
 
     loadInstanceData()
 
-    // Poll for updates every 3 seconds
-    const interval = setInterval(loadInstanceData, 3000)
+    // Poll for updates every 5 seconds (less frequent to reduce blinking)
+    // Only update if data actually changed
+    let previousData: InstanceData | null = null
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(
+          `/api/multiverse/instances/${instanceId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          
+          // Only update if data actually changed (prevents unnecessary re-renders)
+          if (JSON.stringify(data) !== JSON.stringify(previousData)) {
+            setInstanceData(data)
+            setError(null)
+            previousData = data
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll instance:', error)
+      }
+    }, 5000) // Increased to 5 seconds
+    
     return () => clearInterval(interval)
   }, [instanceId, accessToken, router])
 
