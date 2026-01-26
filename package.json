@@ -9,11 +9,14 @@
     "start": "next start",
     "lint": "next lint",
     "export": "next export",
-    "analyze": "ANALYZE=true next build"
+    "analyze": "ANALYZE=true next build",
+    "test:api": "node scripts/test-api.js"
   },
   "dependencies": {
+    "@prisma/client": "^7.3.0",
     "@supabase/supabase-js": "^2.90.1",
     "next": "^14.2.0",
+    "prisma": "^7.3.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
