@@ -90,6 +90,11 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
     'Not sure about that...',
     'Okay, let\'s see what happens.',
     'Sounds good to me.',
+    'Yeah, I think so too.',
+    'That makes sense.',
+    'We should be careful here.',
+    'Let\'s proceed carefully.',
+    'I\'m with you on this.',
   ]
 
   const randomMessage = botMessages[Math.floor(Math.random() * botMessages.length)]
