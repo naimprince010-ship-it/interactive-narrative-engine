@@ -17,7 +17,7 @@ type InstanceData = {
     createdAt: string
     maxPlayers: number
   }
-  characters: Array<{ name: string; id: string }>
+  characters: Array<{ name: string; id: string; isBot?: boolean }>
   myCharacter: {
     name: string
     id: string

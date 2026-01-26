@@ -8,7 +8,7 @@ type InstanceData = {
     currentNodeId: string | null
     createdAt: string
   }
-  characters: Array<{ name: string; id: string }>
+  characters: Array<{ name: string; id: string; isBot?: boolean }>
   myCharacter: {
     name: string
     id: string
@@ -78,10 +78,17 @@ export default function InstanceStatus({ instanceData }: Props) {
                   : 'bg-white/5'
               }`}
             >
-              <div className="text-white text-sm">
-                {char.name}
-                {char.id === instanceData.myCharacter?.id && (
-                  <span className="ml-2 text-purple-300 text-xs">(You)</span>
+              <div className="text-white text-sm flex items-center justify-between">
+                <span>
+                  {char.name}
+                  {char.id === instanceData.myCharacter?.id && (
+                    <span className="ml-2 text-purple-300 text-xs">(You)</span>
+                  )}
+                </span>
+                {char.isBot && (
+                  <span className="ml-2 px-2 py-0.5 bg-gray-600/50 text-gray-300 text-xs rounded border border-gray-500/50">
+                    Bot
+                  </span>
                 )}
               </div>
             </div>

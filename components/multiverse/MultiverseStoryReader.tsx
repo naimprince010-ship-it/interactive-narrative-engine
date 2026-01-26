@@ -24,7 +24,7 @@ type InstanceData = {
     currentNodeId: string | null
     createdAt: string
   }
-  characters: Array<{ name: string; id: string }>
+  characters: Array<{ name: string; id: string; isBot?: boolean }>
   myCharacter: {
     name: string
     id: string

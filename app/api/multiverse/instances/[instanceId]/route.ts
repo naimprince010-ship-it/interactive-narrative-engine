@@ -68,10 +68,10 @@ export async function GET(
 
     const maxPlayers = story?.max_players || 3
 
-    // Get all characters in this instance (without revealing assignments)
+    // Get all characters in this instance (with user_id to identify bots)
     const { data: characters } = await supabase
       .from('character_assignments')
-      .select('character_templates!inner(name, id)')
+      .select('user_id, character_templates!inner(name, id)')
       .eq('instance_id', instanceId)
 
     // Get user's character (for their perspective)
@@ -82,14 +82,16 @@ export async function GET(
       .eq('user_id', userId)
       .single()
 
-    // Type-safe character mapping
+    // Type-safe character mapping with bot identification
     const formattedCharacters = (characters || []).map((c: any) => {
       const template = Array.isArray(c.character_templates)
         ? c.character_templates[0]
         : c.character_templates
+      const isBot = c.user_id?.startsWith('bot_') || false
       return {
         name: template?.name || '',
         id: template?.id || '',
+        isBot,
       }
     })
 

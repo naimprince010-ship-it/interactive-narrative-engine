@@ -168,13 +168,57 @@ export async function joinStory(
     throw new Error(`Failed to assign character: ${assignError?.message}`)
   }
 
-  // Step 7: Check if instance is now full, update status
+  // Step 7: Fill remaining slots with bot players
   const { count: playerCount } = await supabase
     .from('character_assignments')
     .select('*', { count: 'exact', head: true })
     .eq('instance_id', targetInstanceId)
 
-  if (playerCount === story.max_players) {
+  const slotsRemaining = story.max_players - (playerCount || 0)
+
+  // Fill empty slots with bots
+  if (slotsRemaining > 0) {
+    // Get remaining unassigned characters
+    const { data: allAssignedChars } = await supabase
+      .from('character_assignments')
+      .select('template_id')
+      .eq('instance_id', targetInstanceId)
+
+    const allAssignedIds = (allAssignedChars || []).map((a) => a.template_id)
+
+    const { data: remainingCharacters } = await supabase
+      .from('character_templates')
+      .select('id, name')
+      .eq('story_id', storyId)
+      .not('id', 'in', allAssignedIds.length > 0 ? `(${allAssignedIds.join(',')})` : '(null)')
+
+    // Assign bots to remaining characters
+    if (remainingCharacters && remainingCharacters.length > 0) {
+      const botsToCreate = Math.min(slotsRemaining, remainingCharacters.length)
+      
+      for (let i = 0; i < botsToCreate; i++) {
+        const botCharacter = remainingCharacters[i]
+        const botUserId = `bot_${targetInstanceId}_${botCharacter.id}`
+
+        await supabase
+          .from('character_assignments')
+          .insert({
+            user_id: botUserId,
+            instance_id: targetInstanceId,
+            template_id: botCharacter.id,
+            is_revealed: false,
+          })
+      }
+    }
+  }
+
+  // Step 8: Check if instance is now full, update status
+  const { count: finalPlayerCount } = await supabase
+    .from('character_assignments')
+    .select('*', { count: 'exact', head: true })
+    .eq('instance_id', targetInstanceId)
+
+  if (finalPlayerCount === story.max_players) {
     // All slots filled, activate instance
     await supabase
       .from('story_instances')
@@ -223,8 +267,8 @@ export async function joinStory(
     characterId: assignedCharacter.id,
     currentNodeId: finalInstance?.current_node_id || null,
     instanceStatus: (finalInstance?.status as 'WAITING' | 'ACTIVE' | 'COMPLETED') || 'WAITING',
-    message: playerCount === story.max_players
+    message: finalPlayerCount === story.max_players
       ? 'Story instance activated! All players joined.'
-      : `Waiting for ${story.max_players - (playerCount || 0)} more players...`,
+      : `Waiting for ${story.max_players - (finalPlayerCount || 0)} more players...`,
   }
 }
