@@ -79,8 +79,9 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
       continue // No choices available for this bot
     }
 
-    // Random delay (2-5 seconds) to seem human-like
-    const delay = Math.random() * 3000 + 2000 // 2000-5000ms
+    // Minimal delay for serverless compatibility (0.5-2 seconds)
+    // Fast enough to prevent timeouts but still seems natural
+    const delay = Math.random() * 1500 + 500 // 500-2000ms
     await new Promise((resolve) => setTimeout(resolve, delay))
 
     // Simple bot logic: Random choice (can be improved with character traits)
