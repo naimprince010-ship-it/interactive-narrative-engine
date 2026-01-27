@@ -43,30 +43,37 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
     .order('created_at', { ascending: false })
     .limit(5)
 
-  // Check if a bot sent a message recently (within last 20 seconds)
-  const now = new Date()
-  const twentySecondsAgo = new Date(now.getTime() - 20000)
+  // Check if a bot sent a message recently (only for periodic messages, not user-triggered)
+  const isUserTriggered = delayMs > 0 // If delayMs > 0, it means user just sent a message
   
-  const hasRecentBotMessage = recentBotMessages?.some((msg: any) => {
-    const msgTime = new Date(msg.created_at)
-    // Check if this message is from a bot character
-    const isBotMessage = botAssignments.some((bot) => {
-      const template = Array.isArray(bot.character_templates)
-        ? bot.character_templates[0]
-        : bot.character_templates
-      return template?.id === msg.character_id
+  // For user-triggered messages, always allow reply (skip spam check)
+  // For periodic messages, check spam (within last 10 seconds)
+  if (!isUserTriggered) {
+    const now = new Date()
+    const tenSecondsAgo = new Date(now.getTime() - 10000)
+    
+    const hasRecentBotMessage = recentBotMessages?.some((msg: any) => {
+      const msgTime = new Date(msg.created_at)
+      // Check if this message is from a bot character
+      const isBotMessage = botAssignments.some((bot) => {
+        const template = Array.isArray(bot.character_templates)
+          ? bot.character_templates[0]
+          : bot.character_templates
+        return template?.id === msg.character_id
+      })
+      return isBotMessage && msgTime > tenSecondsAgo
     })
-    return isBotMessage && msgTime > twentySecondsAgo
-  })
 
-  if (hasRecentBotMessage) {
-    console.log(`[botChat] Bot sent message recently, skipping to avoid spam`)
-    return
+    if (hasRecentBotMessage) {
+      console.log(`[botChat] Bot sent message recently (within 10s), skipping periodic message to avoid spam`)
+      return
+    }
   }
 
-  // Higher chance for bot to reply (90% chance when triggered - increased for better response rate)
-  if (Math.random() > 0.9) {
-    console.log(`[botChat] Random chance check failed, skipping bot chat`)
+  // Always reply when user sends a message (100% chance - removed random check for user messages)
+  // Only use random chance for periodic messages (not triggered by user)
+  if (!isUserTriggered && Math.random() > 0.8) {
+    console.log(`[botChat] Random chance check failed for periodic message, skipping bot chat`)
     return
   }
 
