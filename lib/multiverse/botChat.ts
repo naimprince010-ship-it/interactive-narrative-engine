@@ -1,9 +1,11 @@
 /**
  * Bot Chat Logic for Multiverse Stories
  * Handles automatic chat messages from bot players
+ * Now powered by AI for intelligent, context-aware responses
  */
 
 import { getSupabaseServerClient } from '@/lib/supabaseServer'
+import { generateBotResponse, getStoryContext } from './aiBotBrain'
 
 /**
  * Process bot chat messages for an instance
@@ -22,7 +24,7 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
   // Get all bot players in this instance
   const { data: botAssignments } = await supabase
     .from('character_assignments')
-    .select('user_id, template_id, character_templates!inner(name, id)')
+    .select('user_id, template_id, character_templates!inner(name, id, description)')
     .eq('instance_id', instanceId)
     .like('user_id', 'bot_%')
 
@@ -72,32 +74,48 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
   const randomBotIndex = Math.floor(Math.random() * botAssignments.length)
   const botAssignment = botAssignments[randomBotIndex]
 
-  // Get bot's character name
+  // Get bot's character info
   const template = Array.isArray(botAssignment.character_templates)
     ? botAssignment.character_templates[0]
     : botAssignment.character_templates
   const botCharacterName = template?.name || ''
+  const botCharacterDescription = (template as any)?.description || 'A character in the story'
 
-  // Simple bot chat messages (can be improved with character-specific messages)
-  const botMessages = [
-    'Interesting...',
-    'Hmm, what should we do?',
-    'I see...',
-    'Let me think...',
-    'This is getting interesting.',
-    'What do you all think?',
-    'I agree.',
-    'Not sure about that...',
-    'Okay, let\'s see what happens.',
-    'Sounds good to me.',
-    'Yeah, I think so too.',
-    'That makes sense.',
-    'We should be careful here.',
-    'Let\'s proceed carefully.',
-    'I\'m with you on this.',
-  ]
+  // Get story context for AI
+  const storyContext = await getStoryContext(instanceId)
 
-  const randomMessage = botMessages[Math.floor(Math.random() * botMessages.length)]
+  // Get recent messages for context
+  const { data: recentMessages } = await supabase
+    .from('character_chat')
+    .select('message, character_templates!inner(name)')
+    .eq('instance_id', instanceId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  const formattedMessages =
+    recentMessages?.map((msg: any) => ({
+      character_name: msg.character_templates?.name || 'Unknown',
+      message: msg.message,
+    })) || []
+
+  // Get the most recent user message (if any)
+  const lastUserMessage = formattedMessages.find(
+    (msg) => !botAssignments.some((bot) => {
+      const botTemplate = Array.isArray(bot.character_templates)
+        ? bot.character_templates[0]
+        : bot.character_templates
+      return botTemplate?.name === msg.character_name
+    })
+  )?.message
+
+  // Generate AI response
+  const randomMessage = await generateBotResponse(
+    botCharacterName,
+    botCharacterDescription,
+    storyContext,
+    formattedMessages.reverse(), // Reverse to get chronological order
+    lastUserMessage
+  )
 
   // Save bot's chat message
   const { error: chatError } = await supabase
