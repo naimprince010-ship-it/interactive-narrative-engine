@@ -102,20 +102,40 @@ export async function POST(
 
     console.log(`[choices] Current choices: ${choiceCount}/${totalPlayers} for node ${nodeId}`)
 
-    // If not all choices are in, trigger bot choices
-    if ((choiceCount || 0) < (totalPlayers || 0)) {
-      console.log(`[choices] Triggering bot choices for remaining players...`)
-      // Trigger bot choices processing (async, don't wait)
-      processBotChoices(instanceId, nodeId).catch((error) => {
-        console.error('[choices] Bot choice processing error:', error)
-      })
-    } else {
-      // All choices are in, check and progress story
-      console.log(`[choices] All choices submitted, checking story progression...`)
-      checkAndProgressStory(instanceId, nodeId).catch((error) => {
-        console.error('[choices] Story progression error:', error)
-      })
-    }
+    // Always check and progress story after a short delay to ensure all choices are processed
+    // This handles both cases: if bots need to choose, and if all choices are already in
+    setTimeout(async () => {
+      // Re-check choice count after delay (bots might have made choices)
+      const { count: updatedChoiceCount } = await supabase
+        .from('user_choices')
+        .select('*', { count: 'exact', head: true })
+        .eq('instance_id', instanceId)
+        .eq('node_id', nodeId)
+
+      console.log(`[choices] Updated choices after delay: ${updatedChoiceCount}/${totalPlayers}`)
+
+      // If not all choices are in, trigger bot choices
+      if ((updatedChoiceCount || 0) < (totalPlayers || 0)) {
+        console.log(`[choices] Triggering bot choices for remaining players...`)
+        // Trigger bot choices processing
+        await processBotChoices(instanceId, nodeId).catch((error) => {
+          console.error('[choices] Bot choice processing error:', error)
+        })
+        
+        // After bots make choices, check again
+        setTimeout(async () => {
+          await checkAndProgressStory(instanceId, nodeId).catch((error) => {
+            console.error('[choices] Story progression error:', error)
+          })
+        }, 3000) // Wait 3 seconds for bots to make choices
+      } else {
+        // All choices are in, check and progress story
+        console.log(`[choices] All choices submitted, checking story progression...`)
+        await checkAndProgressStory(instanceId, nodeId).catch((error) => {
+          console.error('[choices] Story progression error:', error)
+        })
+      }
+    }, 1000) // Wait 1 second before checking
 
     return NextResponse.json({ success: true, message: 'Choice submitted' })
   } catch (error) {

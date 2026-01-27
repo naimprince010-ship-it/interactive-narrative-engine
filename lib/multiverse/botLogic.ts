@@ -103,10 +103,12 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
     }
 
     console.log(`[botLogic] Bot ${botAssignment.user_id} (${botCharacterName}) chose: ${selectedChoice.key}`)
-
-    // Check if all players (including bots) have made choices
-    await checkAndProgressStory(instanceId, nodeId)
   }
+
+  // After all bots have made choices, check and progress story
+  // Only check once after processing all bots, not after each bot
+  console.log(`[botLogic] Finished processing all bot choices, checking story progression...`)
+  await checkAndProgressStory(instanceId, nodeId)
 }
 
 /**
@@ -145,7 +147,8 @@ export async function checkAndProgressStory(instanceId: string, currentNodeId: s
   console.log(`[botLogic] Choices: ${choiceCount}/${totalPlayers} for node ${currentNodeId}`)
 
   // If all players made choices, progress story
-  if (choiceCount === totalPlayers) {
+  // Use >= to handle edge cases where count might be slightly off
+  if ((choiceCount || 0) >= (totalPlayers || 0)) {
     console.log(`[botLogic] All choices submitted! Progressing story...`)
     // Get current node to find next node
     const { data: currentNode } = await supabase
@@ -198,17 +201,26 @@ export async function checkAndProgressStory(instanceId: string, currentNodeId: s
 
       if (nextNode) {
         // Update instance to next node
-        await supabase
+        const { error: updateError } = await supabase
           .from('story_instances')
           .update({ current_node_id: nextNode.id })
           .eq('id', instanceId)
 
+        if (updateError) {
+          console.error(`[botLogic] Failed to update instance to next node:`, updateError)
+          return
+        }
+
+        console.log(`[botLogic] ✅ Story progressed to next node: ${nextNode.id}`)
+
         // Process bot choices for the new node (recursive)
         setTimeout(() => {
           processBotChoices(instanceId, nextNode.id).catch((error) => {
-            console.error('Bot choice processing error for next node:', error)
+            console.error('[botLogic] Bot choice processing error for next node:', error)
           })
-        }, 1000) // Wait 1 second before processing next node
+        }, 2000) // Wait 2 seconds before processing next node
+      } else {
+        console.warn(`[botLogic] Next node not found for key: ${nextNodeKey}`)
       }
     }
   }
