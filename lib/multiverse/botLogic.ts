@@ -79,9 +79,9 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
       continue // No choices available for this bot
     }
 
-    // Minimal delay for serverless compatibility (0.5-2 seconds)
-    // Fast enough to prevent timeouts but still seems natural
-    const delay = Math.random() * 1500 + 500 // 500-2000ms
+    // Very minimal delay for serverless compatibility (0.2-1 second)
+    // Fast enough to prevent timeouts while still processing all bots
+    const delay = Math.random() * 800 + 200 // 200-1000ms
     await new Promise((resolve) => setTimeout(resolve, delay))
 
     // Simple bot logic: Random choice (can be improved with character traits)

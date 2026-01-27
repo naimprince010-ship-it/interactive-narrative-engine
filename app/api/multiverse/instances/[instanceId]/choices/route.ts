@@ -102,20 +102,27 @@ export async function POST(
 
     console.log(`[choices] Current choices: ${choiceCount}/${totalPlayers} for node ${nodeId}`)
 
-    // Trigger bot choices immediately - Vercel will keep function alive for async work
-    // Don't await to avoid blocking response, but ensure it executes
+    // Process bot choices and story progression - await to ensure execution
+    // Vercel serverless functions can handle up to 10 seconds execution time
+    // Bot choices with reduced delays should complete within this time
     if ((choiceCount || 0) < (totalPlayers || 0)) {
       console.log(`[choices] Triggering bot choices for remaining players...`)
-      // Start bot choices processing (will execute in background)
-      processBotChoices(instanceId, nodeId).catch((error) => {
+      // Await bot choices to ensure they execute before function returns
+      try {
+        await processBotChoices(instanceId, nodeId)
+      } catch (error) {
         console.error('[choices] Bot choice processing error:', error)
-      })
+        // Don't fail the request if bot choices fail
+      }
     } else {
       // All choices are in, check and progress story
       console.log(`[choices] All choices submitted, checking story progression...`)
-      checkAndProgressStory(instanceId, nodeId).catch((error) => {
+      try {
+        await checkAndProgressStory(instanceId, nodeId)
+      } catch (error) {
         console.error('[choices] Story progression error:', error)
-      })
+        // Don't fail the request if story progression fails
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Choice submitted' })
