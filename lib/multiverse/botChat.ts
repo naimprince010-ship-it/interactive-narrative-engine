@@ -64,8 +64,8 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
     return
   }
 
-  // Higher chance for bot to reply (70% chance when triggered)
-  if (Math.random() > 0.7) {
+  // Higher chance for bot to reply (90% chance when triggered - increased for better response rate)
+  if (Math.random() > 0.9) {
     console.log(`[botChat] Random chance check failed, skipping bot chat`)
     return
   }
@@ -128,8 +128,9 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
 
   if (chatError) {
     console.error(`[botChat] Failed to save bot chat message for ${botAssignment.user_id}:`, chatError)
+    console.error(`[botChat] Error details:`, JSON.stringify(chatError, null, 2))
   } else {
-    console.log(`[botChat] Bot ${botAssignment.user_id} (${botCharacterName}) sent: ${randomMessage}`)
+    console.log(`[botChat] ✅ Bot ${botAssignment.user_id} (${botCharacterName}) sent: ${randomMessage}`)
   }
 }
 
