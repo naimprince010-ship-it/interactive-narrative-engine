@@ -124,13 +124,26 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
     lastUserMessage
   )
 
+  // Validate message before saving (prevent empty messages)
+  if (!randomMessage || randomMessage.trim().length === 0) {
+    console.error(`[botChat] Generated empty message for ${botCharacterName}, skipping save`)
+    return
+  }
+
+  // Ensure message is not too short
+  const trimmedMessage = randomMessage.trim()
+  if (trimmedMessage.length < 2) {
+    console.error(`[botChat] Message too short (${trimmedMessage.length} chars) for ${botCharacterName}, skipping save`)
+    return
+  }
+
   // Save bot's chat message
   const { error: chatError } = await supabase
     .from('character_chat')
     .insert({
       instance_id: instanceId,
       character_id: template?.id || botAssignment.template_id,
-      message: randomMessage,
+      message: trimmedMessage,
     })
 
   if (chatError) {
