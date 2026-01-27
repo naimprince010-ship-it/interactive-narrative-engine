@@ -107,20 +107,26 @@ export async function POST(
     // Bot choices with reduced delays should complete within this time
     if ((choiceCount || 0) < (totalPlayers || 0)) {
       console.log(`[choices] Triggering bot choices for remaining players...`)
+      console.log(`[choices] Missing ${(totalPlayers || 0) - (choiceCount || 0)} choice(s)`)
       // Await bot choices to ensure they execute before function returns
       try {
         await processBotChoices(instanceId, nodeId)
+        console.log(`[choices] Bot choices processing completed`)
       } catch (error) {
         console.error('[choices] Bot choice processing error:', error)
-        // Don't fail the request if bot choices fail
+        console.error('[choices] Error details:', error instanceof Error ? error.message : String(error))
+        console.error('[choices] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+        // Don't fail the request if bot choices fail, but log the error
       }
     } else {
       // All choices are in, check and progress story
       console.log(`[choices] All choices submitted, checking story progression...`)
       try {
         await checkAndProgressStory(instanceId, nodeId)
+        console.log(`[choices] Story progression check completed`)
       } catch (error) {
         console.error('[choices] Story progression error:', error)
+        console.error('[choices] Error details:', error instanceof Error ? error.message : String(error))
         // Don't fail the request if story progression fails
       }
     }
