@@ -47,10 +47,10 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
   const isUserTriggered = delayMs > 0 // If delayMs > 0, it means user just sent a message
   
   // For user-triggered messages, always allow reply (skip spam check)
-  // For periodic messages, check spam (within last 10 seconds)
+  // For periodic messages, allow bots to chat among themselves (reduced spam check)
   if (!isUserTriggered) {
     const now = new Date()
-    const tenSecondsAgo = new Date(now.getTime() - 10000)
+    const fiveSecondsAgo = new Date(now.getTime() - 5000) // Reduced to 5 seconds for more active conversation
     
     const hasRecentBotMessage = recentBotMessages?.some((msg: any) => {
       const msgTime = new Date(msg.created_at)
@@ -61,18 +61,18 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
           : bot.character_templates
         return template?.id === msg.character_id
       })
-      return isBotMessage && msgTime > tenSecondsAgo
+      return isBotMessage && msgTime > fiveSecondsAgo
     })
 
     if (hasRecentBotMessage) {
-      console.log(`[botChat] Bot sent message recently (within 10s), skipping periodic message to avoid spam`)
+      console.log(`[botChat] Bot sent message recently (within 5s), skipping to avoid spam`)
       return
     }
   }
 
-  // Always reply when user sends a message (100% chance - removed random check for user messages)
-  // Only use random chance for periodic messages (not triggered by user)
-  if (!isUserTriggered && Math.random() > 0.8) {
+  // Always reply when user sends a message (100% chance)
+  // For periodic messages, higher chance (90%) to keep conversation alive
+  if (!isUserTriggered && Math.random() > 0.9) {
     console.log(`[botChat] Random chance check failed for periodic message, skipping bot chat`)
     return
   }
@@ -157,10 +157,11 @@ export async function processBotChat(instanceId: string, delayMs: number = 0) {
 /**
  * Start periodic bot chat for an instance
  * This should be called when an instance becomes ACTIVE
+ * Bots will chat among themselves to keep conversation alive
  */
 export function startBotChatInterval(instanceId: string) {
-  // Process bot chat every 30-60 seconds (random interval)
-  const interval = 30000 + Math.random() * 30000 // 30-60 seconds
+  // Process bot chat more frequently (20-40 seconds) to keep conversation alive
+  const interval = 20000 + Math.random() * 20000 // 20-40 seconds
 
   setTimeout(() => {
     processBotChat(instanceId).catch((error) => {

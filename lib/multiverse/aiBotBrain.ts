@@ -53,12 +53,14 @@ Your role:
 - Be conversational, engaging, and specific to the context
 - React to what other characters say with relevant responses
 - Stay true to your character's personality
-- Use simple, natural language (mix of English and Bengali if appropriate)
+- IMPORTANT: Use a natural mix of Bengali (বাংলা) and English in your responses - this is how people actually talk in Bangladesh
+- Example: "Ami bhabchi je amra ekhon ki korbo. What do you think?" or "This is interesting. Amader ekhon sobar opinion jante hobe."
 - Don't be overly dramatic or formal
 - NEVER send empty or one-word responses
 - Make your response relevant to the conversation and story context
+- Continue conversations naturally - ask questions, share thoughts, react to others
 
-${userMessage ? `A user just said: "${userMessage}"\nRespond to them naturally and specifically address what they said.` : 'Send a brief, natural message that fits the current story situation and moves the conversation forward.'}`
+${userMessage ? `A user just said: "${userMessage}"\nRespond to them naturally in a mix of Bengali and English, and specifically address what they said.` : 'Send a brief, natural message in a mix of Bengali and English that fits the current story situation and moves the conversation forward. You can ask questions, share your thoughts, or react to what others have said.'}`
 
     const userPrompt = userMessage
       ? `Respond to: "${userMessage}"\n\nRecent conversation:\n${conversationHistory || 'No recent messages'}`
@@ -102,32 +104,32 @@ ${userMessage ? `A user just said: "${userMessage}"\nRespond to them naturally a
  */
 function getFallbackResponse(characterName: string, userMessage?: string): string {
   if (userMessage) {
-    // Respond to user message with more engaging responses
+    // Respond to user message with Bengali-English mix
     const responses = [
-      'I understand what you mean.',
-      'That\'s an interesting point.',
-      'Let me think about that for a moment.',
-      'I see where you\'re coming from.',
-      'That makes sense to me.',
-      'I agree with your perspective.',
-      'Hmm, that\'s something to consider.',
-      'You raise a good point there.',
-      'I hadn\'t thought of it that way.',
-      'That\'s worth discussing further.',
+      'Ami bujhte parchi. That makes sense.',
+      'Interesting point. Ami bhabchi ekhon ki korbo.',
+      'Hmm, let me think about that. Ekhon ki korbo amra?',
+      'I see what you mean. Amader sobar opinion jante hobe.',
+      'That\'s a good point. Ami agree kori.',
+      'Ami bhabchi ekhon sobar kotha shunbo.',
+      'You\'re right. Ekhon amader plan korte hobe.',
+      'Ami bujhte parchi. What do you all think?',
+      'Interesting. Amader ekhon careful hote hobe.',
+      'I agree. Ekhon ki korbo amra?',
     ]
     return responses[Math.floor(Math.random() * responses.length)]
   }
 
-  // General message - more engaging
+  // General message - Bengali-English mix, more engaging
   const responses = [
-    'What do you all think about this situation?',
-    'This is getting quite interesting.',
-    'I think we should discuss our options.',
-    'Let\'s think carefully about what to do next.',
-    'I wonder what will happen if we proceed.',
-    'We need to be cautious here.',
-    'This situation requires careful consideration.',
-    'I\'m curious to see how this unfolds.',
+    'Amader sobar ki mone hoche ekhon? What do you all think?',
+    'This is getting interesting. Ami bhabchi ekhon ki korbo.',
+    'Amader ekhon plan korte hobe. What should we do?',
+    'I think we should discuss. Amader sobar opinion jante hobe.',
+    'Ekhon ki korbo amra? Let\'s think carefully.',
+    'This situation is tricky. Amader careful hote hobe.',
+    'Ami curious je ekhon ki hobe. What do you think?',
+    'Amader ekhon sobar kotha shunbo. Let\'s discuss our options.',
   ]
   return responses[Math.floor(Math.random() * responses.length)]
 }
