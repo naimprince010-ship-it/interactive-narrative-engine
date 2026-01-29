@@ -36,7 +36,7 @@ export default function PlayMultiverseStoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
-  const loadInstanceDataRef = useRef<() => Promise<void>>(null)
+  const loadInstanceDataRef = useRef<() => Promise<void>>(async () => {})
 
   // Phase 4: Realtime — refetch instance when story_instances or story_state changes
   useInstanceRealtime(instanceId, () => loadInstanceDataRef.current?.())
