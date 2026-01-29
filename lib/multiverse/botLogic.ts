@@ -12,32 +12,53 @@ import { getSupabaseServerClient } from '@/lib/supabaseServer'
 export async function processBotChoices(instanceId: string, nodeId: string) {
   const supabase = getSupabaseServerClient()
 
-  console.log(`[botLogic] Processing bot choices for instance ${instanceId}, node ${nodeId}`)
+  console.log(`[botLogic] 🔵 Starting bot choices processing for instance ${instanceId}, node ${nodeId}`)
 
-  // Get all bot players in this instance
-  const { data: botAssignments } = await supabase
-    .from('character_assignments')
-    .select('user_id, template_id, character_templates!inner(name, id)')
-    .eq('instance_id', instanceId)
-    .like('user_id', 'bot_%')
+  try {
+    // Get all bot players in this instance
+    const { data: botAssignments, error: botQueryError } = await supabase
+      .from('character_assignments')
+      .select('user_id, template_id, character_templates!inner(name, id)')
+      .eq('instance_id', instanceId)
+      .like('user_id', 'bot_%')
 
-  if (!botAssignments || botAssignments.length === 0) {
-    console.log(`[botLogic] No bots found in instance ${instanceId}`)
-    return // No bots in this instance
-  }
+    if (botQueryError) {
+      console.error(`[botLogic] ❌ Error querying bot assignments:`, botQueryError)
+      return
+    }
 
-  console.log(`[botLogic] Found ${botAssignments.length} bot(s) in instance ${instanceId}`)
+    if (!botAssignments || botAssignments.length === 0) {
+      console.log(`[botLogic] ⚠️ No bots found in instance ${instanceId}`)
+      // Debug: Check all assignments to see what's there
+      const { data: allAssignments } = await supabase
+        .from('character_assignments')
+        .select('user_id')
+        .eq('instance_id', instanceId)
+      console.log(`[botLogic] 📊 All assignments in instance:`, allAssignments?.map(a => a.user_id))
+      return // No bots in this instance
+    }
 
-  // Get the current node to see available choices
-  const { data: node } = await supabase
-    .from('story_nodes')
-    .select('id, choices')
-    .eq('id', nodeId)
-    .single()
+    console.log(`[botLogic] ✅ Found ${botAssignments.length} bot(s) in instance ${instanceId}`)
+    console.log(`[botLogic] 📋 Bot user IDs:`, botAssignments.map(b => b.user_id))
 
-  if (!node || !node.choices) {
-    return
-  }
+    // Get the current node to see available choices
+    const { data: node, error: nodeError } = await supabase
+      .from('story_nodes')
+      .select('id, choices')
+      .eq('id', nodeId)
+      .single()
+
+    if (nodeError) {
+      console.error(`[botLogic] ❌ Error fetching node ${nodeId}:`, nodeError)
+      return
+    }
+
+    if (!node || !node.choices) {
+      console.log(`[botLogic] ⚠️ Node ${nodeId} not found or has no choices`)
+      return
+    }
+
+    console.log(`[botLogic] ✅ Node ${nodeId} found with ${Array.isArray(node.choices) ? node.choices.length : 0} choices`)
 
   const choices = node.choices as Array<{
     key: string
@@ -46,20 +67,34 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
     character_specific?: string[] | null
   }>
 
-  // Process each bot's choice
-  for (const botAssignment of botAssignments) {
-    // Check if bot already made a choice for this node
-    const { data: existingChoice } = await supabase
-      .from('user_choices')
-      .select('id')
-      .eq('instance_id', instanceId)
-      .eq('user_id', botAssignment.user_id)
-      .eq('node_id', nodeId)
-      .maybeSingle()
+    // Process each bot's choice
+    let processedCount = 0
+    let skippedCount = 0
+    let errorCount = 0
 
-    if (existingChoice) {
-      continue // Bot already made a choice
-    }
+    for (const botAssignment of botAssignments) {
+      console.log(`[botLogic] 🔄 Processing bot ${botAssignment.user_id}...`)
+      
+      // Check if bot already made a choice for this node
+      const { data: existingChoice, error: checkError } = await supabase
+        .from('user_choices')
+        .select('id')
+        .eq('instance_id', instanceId)
+        .eq('user_id', botAssignment.user_id)
+        .eq('node_id', nodeId)
+        .maybeSingle()
+
+      if (checkError) {
+        console.error(`[botLogic] ❌ Error checking existing choice for ${botAssignment.user_id}:`, checkError)
+        errorCount++
+        continue
+      }
+
+      if (existingChoice) {
+        console.log(`[botLogic] ⏭️ Bot ${botAssignment.user_id} already made a choice, skipping`)
+        skippedCount++
+        continue // Bot already made a choice
+      }
 
     // Get bot's character name
     const template = Array.isArray(botAssignment.character_templates)
@@ -98,18 +133,26 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
         choice_key: selectedChoice.key,
       })
 
-    if (botChoiceError) {
-      console.error(`[botLogic] Failed to save bot choice for ${botAssignment.user_id}:`, botChoiceError)
-      continue
+      if (botChoiceError) {
+        console.error(`[botLogic] ❌ Failed to save bot choice for ${botAssignment.user_id}:`, botChoiceError)
+        errorCount++
+        continue
+      }
+
+      console.log(`[botLogic] ✅ Bot ${botAssignment.user_id} (${botCharacterName}) chose: ${selectedChoice.key}`)
+      processedCount++
     }
 
-    console.log(`[botLogic] Bot ${botAssignment.user_id} (${botCharacterName}) chose: ${selectedChoice.key}`)
-  }
+    console.log(`[botLogic] 📊 Bot processing summary: ${processedCount} processed, ${skippedCount} skipped, ${errorCount} errors`)
 
-  // After all bots have made choices, check and progress story
-  // Only check once after processing all bots, not after each bot
-  console.log(`[botLogic] Finished processing all bot choices, checking story progression...`)
-  await checkAndProgressStory(instanceId, nodeId)
+    // After all bots have made choices, check and progress story
+    // Only check once after processing all bots, not after each bot
+    console.log(`[botLogic] 🔄 Finished processing all bot choices, checking story progression...`)
+    await checkAndProgressStory(instanceId, nodeId)
+  } catch (error) {
+    console.error(`[botLogic] ❌ Fatal error in processBotChoices:`, error)
+    throw error // Re-throw to be caught by caller
+  }
 }
 
 /**

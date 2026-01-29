@@ -50,6 +50,32 @@ export default function MultiverseStoryReader({
   const [submittingChoice, setSubmittingChoice] = useState(false)
   const [userChoiceMade, setUserChoiceMade] = useState<string | null>(null)
 
+  // When user has submitted choice and is "waiting for other players", trigger bot choices
+  // as a fallback (in case initial POST /choices didn't complete bot processing on serverless)
+  useEffect(() => {
+    if (!userChoiceMade || !currentNode?.id || !accessToken) return
+
+    const triggerBotChoices = async () => {
+      try {
+        await fetch(`/api/multiverse/instances/${instanceId}/trigger-bot-choices`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ nodeId: currentNode.id }),
+        })
+      } catch (err) {
+        console.error('Trigger bot choices failed:', err)
+      }
+    }
+
+    // Trigger immediately once when we enter "waiting" state
+    triggerBotChoices()
+    const interval = setInterval(triggerBotChoices, 5000)
+    return () => clearInterval(interval)
+  }, [instanceId, accessToken, userChoiceMade, currentNode?.id])
+
   useEffect(() => {
     if (!instanceData.instance.currentNodeId) {
       setLoading(false)
