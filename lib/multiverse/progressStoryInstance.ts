@@ -34,10 +34,12 @@ type NodeRow = {
   is_ending: boolean
 }
 
+type TemplateShape = { name: string; description?: string }
+
 type AssignmentRow = {
   user_id: string
   template_id: string
-  character_templates: { name: string; description?: string } | { name: string; description?: string }[]
+  character_templates: TemplateShape | TemplateShape[]
 }
 
 type UserChoiceRow = {
@@ -118,11 +120,10 @@ async function loadInstanceData(instanceId: string) {
   const characterProfiles: CharacterProfile[] = []
 
   for (const a of assignments || []) {
-    const t = Array.isArray((a as AssignmentRow).character_templates)
-      ? (a as AssignmentRow).character_templates[0]
-      : (a as AssignmentRow).character_templates
+    const ct = (a as AssignmentRow).character_templates
+    const t: TemplateShape | undefined = Array.isArray(ct) ? ct[0] : ct
     const name = t?.name || ''
-    const desc = (t as { description?: string })?.description || ''
+    const desc = t?.description || ''
     characterProfiles.push({ name, description: desc })
 
     const uc = userChoices?.find((c: UserChoiceRow) => c.user_id === (a as AssignmentRow).user_id)
