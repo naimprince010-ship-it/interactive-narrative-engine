@@ -5,17 +5,19 @@
 -- ============================================
 -- STEP 1: Create the story
 -- ============================================
-INSERT INTO public.stories (id, title, description, max_players)
+INSERT INTO public.stories (id, title, description, max_players, genre)
 VALUES (
   'test-multiverse-story-1',
   'The Phone Call Mystery',
   'Three friends receive a mysterious phone call that changes everything. Each person plays a different character with their own perspective.',
-  3
+  3,
+  'mystery'
 )
 ON CONFLICT (id) DO UPDATE
 SET title = EXCLUDED.title,
     description = EXCLUDED.description,
-    max_players = EXCLUDED.max_players;
+    max_players = EXCLUDED.max_players,
+    genre = EXCLUDED.genre;
 
 -- ============================================
 -- STEP 2: Create character templates

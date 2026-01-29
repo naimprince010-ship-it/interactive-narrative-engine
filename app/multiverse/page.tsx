@@ -10,13 +10,37 @@ type Story = {
   title: string
   description: string | null
   max_players: number
+  genre: string | null
 }
+
+const GENRES = [
+  { value: '', label: 'সব জেনার' },
+  { value: 'mystery', label: 'মিস্ট্রি' },
+  { value: 'romance', label: 'রোমান্স' },
+  { value: 'thriller', label: 'থ্রিলার' },
+  { value: 'scifi', label: 'সাই-ফাই' },
+  { value: 'fantasy', label: 'ফ্যান্টাসি' },
+  { value: 'horror', label: 'হরর' },
+  { value: 'comedy', label: 'কমেডি' },
+  { value: 'drama', label: 'ড্রামা' },
+  { value: 'adventure', label: 'অ্যাডভেঞ্চার' },
+  { value: 'action', label: 'অ্যাকশন' },
+  { value: 'slice_of_life', label: 'স্লাইস অফ লাইফ' },
+  { value: 'historical', label: 'ঐতিহাসিক' },
+  { value: 'crime', label: 'ক্রাইম / ডিটেকটিভ' },
+  { value: 'supernatural', label: 'সুপারন্যাচারাল' },
+  { value: 'family', label: 'পারিবারিক' },
+  { value: 'psychological', label: 'সাইকোলজিক্যাল' },
+  { value: 'tragedy', label: 'ট্র্যাজেডি' },
+  { value: 'inspirational', label: 'অনুপ্রেরণাদায়ক' },
+]
 
 export default function MultiverseStoriesPage() {
   const router = useRouter()
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [genreFilter, setGenreFilter] = useState<string>('')
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -32,10 +56,14 @@ export default function MultiverseStoriesPage() {
     const loadStories = async () => {
       try {
         const supabase = getSupabaseClient()
-        const { data, error } = await supabase
+        let query = supabase
           .from('stories')
-          .select('id, title, description, max_players')
+          .select('id, title, description, max_players, genre')
           .order('created_at', { ascending: false })
+        if (genreFilter) {
+          query = query.eq('genre', genreFilter)
+        }
+        const { data, error } = await query
 
         if (error) throw error
         setStories(data || [])
@@ -47,7 +75,7 @@ export default function MultiverseStoriesPage() {
     }
 
     loadStories()
-  }, [])
+  }, [genreFilter])
 
   const handleJoinStory = async (storyId: string) => {
     if (!accessToken) {
@@ -94,9 +122,26 @@ export default function MultiverseStoriesPage() {
           <h1 className="text-4xl font-bold text-white mb-2">
             Multiverse Stories
           </h1>
-          <p className="text-purple-200">
-            Join interactive stories where multiple players shape the narrative together
+          <p className="text-purple-200 mb-2">
+            সবার choice মিলে গল্প এগোবে। গোপন চরিত্র নিয়ে চ্যাট করুন, বট বা বন্ধুদের সঙ্গে খেলুন।
           </p>
+          <p className="text-purple-300 text-sm mb-4">
+            জয়েন করলে আপনি একটা গল্পের চরিত্র পাবেন (কেউ জানবে না কে কোন চরিত্র)। সবার choice জমা হলে গল্প পরের দৃশ্যে যাবে।
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-purple-300 text-sm">জেনার:</span>
+            <select
+              value={genreFilter}
+              onChange={(e) => setGenreFilter(e.target.value)}
+              className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+            >
+              {GENRES.map((g) => (
+                <option key={g.value || 'all'} value={g.value} className="bg-purple-900 text-white">
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {stories.length === 0 ? (
@@ -113,6 +158,11 @@ export default function MultiverseStoriesPage() {
                 <h2 className="text-2xl font-bold text-white mb-2">
                   {story.title}
                 </h2>
+                {story.genre && (
+                  <span className="inline-block text-xs bg-purple-600/50 text-purple-200 px-2 py-0.5 rounded mb-2">
+                    {GENRES.find((g) => g.value === story.genre)?.label || story.genre}
+                  </span>
+                )}
                 <p className="text-purple-200 mb-4 line-clamp-3">
                   {story.description || 'No description available'}
                 </p>

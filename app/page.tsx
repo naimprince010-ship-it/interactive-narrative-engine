@@ -14,14 +14,24 @@ export default function Home() {
           
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl mb-8">
             <h2 className="text-3xl font-semibold text-white mb-4">🌌 Multiverse Stories</h2>
-            <p className="text-purple-200 mb-6">
-              Join interactive stories where multiple players shape the narrative together. Each player gets assigned a secret character!
+            <p className="text-purple-200 mb-4">
+              বন্ধুদের সঙ্গে বা অন্যদের সঙ্গে একসাথে গল্প বানান — সবার choice মিলে গল্প এগোবে। আপনাকে একটা গোপন চরিত্র দেওয়া হবে; শেষ পর্যন্ত কে কে সেটা রহস্য।
             </p>
+            <div className="bg-white/5 rounded-xl p-6 mb-6 text-left border border-white/10">
+              <h3 className="text-lg font-semibold text-white mb-3">স্টোরিতে জয়েন করলে কী কী পাবেন:</h3>
+              <ul className="space-y-2 text-purple-200">
+                <li>✅ <strong className="text-white">গোপন চরিত্র</strong> — কে কোন চরিত্র খেলছে কেউ জানবে না</li>
+                <li>✅ <strong className="text-white">সবার ভোটে গল্প</strong> — সবার choice মিলে পরবর্তী দৃশ্য ঠিক হবে</li>
+                <li>✅ <strong className="text-white">ক্যারেক্টার চ্যাট</strong> — চরিত্র হয়ে বাংলা–ইংলিশ মিক্সে চ্যাট</li>
+                <li>✅ <strong className="text-white">বট প্লেয়ার</strong> — বন্ধু কম থাকলেও বট দিয়ে গল্প চালু</li>
+                <li>✅ <strong className="text-white">নানা জেনার</strong> — মিস্ট্রি, রোমান্স, থ্রিলার ইত্যাদি গল্প</li>
+              </ul>
+            </div>
             <Link
               href="/multiverse"
               className="inline-block bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-all shadow-lg hover:shadow-xl mb-8"
             >
-              🎮 Join Multiverse Stories
+              🎮 Multiverse স্টোরিতে জয়েন করুন
             </Link>
           </div>
 
