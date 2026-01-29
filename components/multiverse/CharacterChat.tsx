@@ -25,6 +25,8 @@ export default function CharacterChat({
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const prevMessageCountRef = useRef(0)
 
   useEffect(() => {
     if (!accessToken) return
@@ -104,7 +106,7 @@ export default function CharacterChat({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
           <div className="text-center text-purple-300 text-sm py-8">
             No messages yet. Start the conversation!
