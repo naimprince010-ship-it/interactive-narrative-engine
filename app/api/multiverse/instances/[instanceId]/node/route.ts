@@ -90,9 +90,8 @@ export async function GET(
     } | null
     if (stateData?.current_ai_node_id === nodeId && stateData?.current_ai_content) {
       narrator_summary = stateData.current_ai_content.narrator_summary
-      const myName = Array.isArray(assignment.character_templates)
-        ? assignment.character_templates[0]?.name
-        : (assignment as { character_templates?: { name: string } }).character_templates?.name
+      const templates = assignment.character_templates as { name: string } | { name: string }[] | undefined
+      const myName = Array.isArray(templates) ? templates[0]?.name : templates?.name
       if (myName && stateData.current_ai_content.character_perspectives[myName]) {
         content_for_you = stateData.current_ai_content.character_perspectives[myName]
       }
