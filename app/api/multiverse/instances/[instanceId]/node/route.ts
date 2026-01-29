@@ -75,8 +75,28 @@ export async function GET(
       .eq('node_id', nodeId)
       .maybeSingle()
 
-    // TODO: Filter content based on character perspective
-    // For now, return node as-is
+    // Phase 4: perspective-based content — if this node has AI-generated character_perspectives, return content_for_you
+    let content_for_you: string | null = null
+    let narrator_summary: string | null = null
+    const { data: stateRow } = await supabase
+      .from('story_state')
+      .select('state_data')
+      .eq('instance_id', instanceId)
+      .maybeSingle()
+
+    const stateData = stateRow?.state_data as {
+      current_ai_node_id?: string
+      current_ai_content?: { character_perspectives: Record<string, string>; narrator_summary: string }
+    } | null
+    if (stateData?.current_ai_node_id === nodeId && stateData?.current_ai_content) {
+      narrator_summary = stateData.current_ai_content.narrator_summary
+      const myName = Array.isArray(assignment.character_templates)
+        ? assignment.character_templates[0]?.name
+        : (assignment as { character_templates?: { name: string } }).character_templates?.name
+      if (myName && stateData.current_ai_content.character_perspectives[myName]) {
+        content_for_you = stateData.current_ai_content.character_perspectives[myName]
+      }
+    }
 
     return NextResponse.json({
       node: {
@@ -86,6 +106,8 @@ export async function GET(
         content: node.content,
         choices: node.choices,
         is_ending: node.is_ending,
+        ...(content_for_you != null && { content_for_you }),
+        ...(narrator_summary != null && { narrator_summary }),
       },
       userChoice: userChoice ? { choice_key: userChoice.choice_key } : null,
     })

@@ -144,3 +144,12 @@ create policy "Users can view chat for their instances" on public.character_chat
 -- Users can see their own choices
 create policy "Users can view their own choices" on public.user_choices
   for select using (auth.uid()::text = user_id);
+
+-- Users can see story_state for instances they're part of (Phase 4 Realtime + API)
+create policy "Users can view story_state for their instances" on public.story_state
+  for select using (
+    instance_id in (
+      select instance_id from public.character_assignments
+      where user_id = auth.uid()::text
+    )
+  );

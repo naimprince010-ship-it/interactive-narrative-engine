@@ -156,116 +156,26 @@ export async function processBotChoices(instanceId: string, nodeId: string) {
 }
 
 /**
- * Check if all players made choices, then progress to next node
+ * Check if all players made choices, then progress to next node.
+ * Delegates to progressStoryInstance (Phase 2: pre-defined or AI branch).
  */
-export async function checkAndProgressStory(instanceId: string, currentNodeId: string) {
+export async function checkAndProgressStory(instanceId: string, _currentNodeId: string) {
+  const { progressStoryInstance } = await import('./progressStoryInstance')
   const supabase = getSupabaseServerClient()
 
-  console.log(`[botLogic] Checking story progression for instance ${instanceId}, node ${currentNodeId}`)
-
-  // Get instance details
-  const { data: instance } = await supabase
-    .from('story_instances')
-    .select('id, story_id, status')
-    .eq('id', instanceId)
-    .single()
-
-  if (!instance || instance.status !== 'ACTIVE') {
-    console.log(`[botLogic] Instance ${instanceId} is not ACTIVE (status: ${instance?.status})`)
-    return
-  }
-
-  // Get all players (including bots) in this instance
   const { count: totalPlayers } = await supabase
     .from('character_assignments')
     .select('*', { count: 'exact', head: true })
     .eq('instance_id', instanceId)
 
-  // Get all choices for current node
   const { count: choiceCount } = await supabase
     .from('user_choices')
     .select('*', { count: 'exact', head: true })
     .eq('instance_id', instanceId)
-    .eq('node_id', currentNodeId)
+    .eq('node_id', _currentNodeId)
 
-  console.log(`[botLogic] Choices: ${choiceCount}/${totalPlayers} for node ${currentNodeId}`)
-
-  // If all players made choices, progress story
-  // Use >= to handle edge cases where count might be slightly off
   if ((choiceCount || 0) >= (totalPlayers || 0)) {
-    console.log(`[botLogic] All choices submitted! Progressing story...`)
-    // Get current node to find next node
-    const { data: currentNode } = await supabase
-      .from('story_nodes')
-      .select('id, choices, is_ending')
-      .eq('id', currentNodeId)
-      .single()
-
-    if (!currentNode || currentNode.is_ending) {
-      // Story ended
-      await supabase
-        .from('story_instances')
-        .update({ status: 'COMPLETED', completed_at: new Date().toISOString() })
-        .eq('id', instanceId)
-      return
-    }
-
-    // Aggregate choices (simple: majority vote, or first choice if tie)
-    const { data: allChoices } = await supabase
-      .from('user_choices')
-      .select('choice_key')
-      .eq('instance_id', instanceId)
-      .eq('node_id', currentNodeId)
-
-    // Count choice votes
-    const choiceVotes: Record<string, number> = {}
-    allChoices?.forEach((choice) => {
-      choiceVotes[choice.choice_key] = (choiceVotes[choice.choice_key] || 0) + 1
-    })
-
-    // Find most popular choice
-    let nextNodeKey: string | null = null
-    let maxVotes = 0
-    Object.entries(choiceVotes).forEach(([choiceKey, votes]) => {
-      if (votes > maxVotes) {
-        maxVotes = votes
-        const choice = (currentNode.choices as any[]).find((c) => c.key === choiceKey)
-        nextNodeKey = choice?.next_node || null
-      }
-    })
-
-    if (nextNodeKey) {
-      // Find next node by node_key
-      const { data: nextNode } = await supabase
-        .from('story_nodes')
-        .select('id')
-        .eq('story_id', instance.story_id)
-        .eq('node_key', nextNodeKey)
-        .maybeSingle()
-
-      if (nextNode) {
-        // Update instance to next node
-        const { error: updateError } = await supabase
-          .from('story_instances')
-          .update({ current_node_id: nextNode.id })
-          .eq('id', instanceId)
-
-        if (updateError) {
-          console.error(`[botLogic] Failed to update instance to next node:`, updateError)
-          return
-        }
-
-        console.log(`[botLogic] ✅ Story progressed to next node: ${nextNode.id}`)
-
-        // Process bot choices for the new node (recursive)
-        setTimeout(() => {
-          processBotChoices(instanceId, nextNode.id).catch((error) => {
-            console.error('[botLogic] Bot choice processing error for next node:', error)
-          })
-        }, 2000) // Wait 2 seconds before processing next node
-      } else {
-        console.warn(`[botLogic] Next node not found for key: ${nextNodeKey}`)
-      }
-    }
+    console.log(`[botLogic] All choices submitted! Calling progressStoryInstance...`)
+    await progressStoryInstance(instanceId)
   }
 }

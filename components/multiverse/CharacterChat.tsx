@@ -84,6 +84,17 @@ export default function CharacterChat({
 
       if (response.ok) {
         setNewMessage('')
+        // Trigger bot reply after 4s so it runs in a new request (reliable on Vercel serverless)
+        const botDelay = 4000
+        setTimeout(() => {
+          fetch(`/api/multiverse/instances/${instanceId}/trigger-bot-chat`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }).catch((err) => console.error('Trigger bot chat failed:', err))
+        }, botDelay)
         // Messages will update via polling
       } else {
         const data = await response.json()

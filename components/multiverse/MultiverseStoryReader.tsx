@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useInstanceRealtime } from '@/lib/useInstanceRealtime'
 
 type StoryNode = {
   id: string
   node_key: string
   title: string
   content: string
+  content_for_you?: string | null
+  narrator_summary?: string | null
   choices: Array<{
     key: string
     text: string
@@ -49,6 +52,10 @@ export default function MultiverseStoryReader({
   const [loading, setLoading] = useState(true)
   const [submittingChoice, setSubmittingChoice] = useState(false)
   const [userChoiceMade, setUserChoiceMade] = useState<string | null>(null)
+  const refetchNodeRef = useRef<() => void>(() => {})
+
+  // Phase 4: Realtime — refetch node when story_instances or story_state changes (content_for_you, choices, is_ending)
+  useInstanceRealtime(instanceId, () => refetchNodeRef.current?.())
 
   // When user has submitted choice and is "waiting for other players", trigger bot choices
   // as a fallback (in case initial POST /choices didn't complete bot processing on serverless)
@@ -107,9 +114,7 @@ export default function MultiverseStoryReader({
 
         if (response.ok) {
           const data = await response.json()
-          
-          // Only update if node actually changed
-          if (data.node && data.node.id !== currentNode?.id) {
+          if (data.node) {
             setCurrentNode(data.node)
           }
           
@@ -130,11 +135,11 @@ export default function MultiverseStoryReader({
       }
     }
 
-    // Initial load
+    refetchNodeRef.current = loadNode
     setLoading(true)
     loadNode()
-    
-    // Poll for node updates every 5 seconds when story is active (less frequent to reduce blinking)
+
+    // Poll for node updates every 5 seconds (fallback if Realtime not enabled)
     // Only poll if we don't have a node or if story might have progressed
     if (instanceData.instance.status === 'ACTIVE') {
       const interval = setInterval(() => {
@@ -255,11 +260,19 @@ export default function MultiverseStoryReader({
 
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-lg p-8 border border-white/20">
-      {/* Story Node */}
+      {/* Story Node — perspective-based: content_for_you (your character) + narrator_summary or content */}
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-white mb-4">{currentNode.title}</h2>
+        {currentNode.content_for_you != null && (
+          <div className="mb-4 p-4 bg-purple-900/40 rounded-lg border border-purple-500/40">
+            <p className="text-purple-200 text-sm mb-2 font-semibold">Your perspective ({instanceData.myCharacter?.name})</p>
+            <div className="text-purple-100 whitespace-pre-line leading-relaxed">
+              {currentNode.content_for_you}
+            </div>
+          </div>
+        )}
         <div className="text-purple-100 whitespace-pre-line leading-relaxed text-lg">
-          {currentNode.content}
+          {currentNode.narrator_summary ?? currentNode.content}
         </div>
       </div>
 

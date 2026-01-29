@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabaseClient } from '@/lib/supabaseClient'
+import { useInstanceRealtime } from '@/lib/useInstanceRealtime'
 import MultiverseStoryReader from '@/components/multiverse/MultiverseStoryReader'
 import InstanceStatus from '@/components/multiverse/InstanceStatus'
 import CharacterChat from '@/components/multiverse/CharacterChat'
@@ -35,6 +36,10 @@ export default function PlayMultiverseStoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  const loadInstanceDataRef = useRef<() => Promise<void>>(null)
+
+  // Phase 4: Realtime — refetch instance when story_instances or story_state changes
+  useInstanceRealtime(instanceId, () => loadInstanceDataRef.current?.())
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -90,9 +95,10 @@ export default function PlayMultiverseStoryPage() {
       }
     }
 
+    loadInstanceDataRef.current = loadInstanceData
     loadInstanceData()
 
-    // Poll for updates every 5 seconds (less frequent to reduce blinking)
+    // Poll for updates every 5 seconds (fallback if Realtime not enabled)
     // Only update if data actually changed
     let previousData: InstanceData | null = null
     const interval = setInterval(async () => {
