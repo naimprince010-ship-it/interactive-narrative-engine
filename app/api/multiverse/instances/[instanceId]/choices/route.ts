@@ -95,7 +95,7 @@ export async function POST(
     const choices = (node?.choices as Array<{ key: string; dangerous?: boolean; risk_hp?: number }>) ?? []
     const choiceDef = choices.find((c) => c.key === choiceKey)
     if (choiceDef) {
-      const risk = getChoiceRisk(choiceDef as { key: string; dangerous?: boolean; risk_hp?: number })
+      const risk = getChoiceRisk(choiceDef)
       if (risk > 0) {
         await applyHealthDamage(instanceId, userId, risk, `choice_${choiceKey}`)
       }

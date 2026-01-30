@@ -91,7 +91,7 @@ export async function addInventoryItem(
 /**
  * Get choice definition risk: risk_hp amount or 10 if dangerous.
  */
-export function getChoiceRisk(choice: ChoiceDef): number {
+export function getChoiceRisk(choice: { dangerous?: boolean; risk_hp?: number }): number {
   if (choice.risk_hp != null && choice.risk_hp > 0) return choice.risk_hp
   if (choice.dangerous) return 10
   return 0
