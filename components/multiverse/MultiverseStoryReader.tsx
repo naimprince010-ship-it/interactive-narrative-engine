@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useInstanceRealtime } from '@/lib/useInstanceRealtime'
 
+export type MoodScore = {
+  tension?: number
+  romance?: number
+  mystery?: number
+  hope?: number
+}
+
 type StoryNode = {
   id: string
   node_key: string
@@ -10,6 +17,8 @@ type StoryNode = {
   content: string
   content_for_you?: string | null
   narrator_summary?: string | null
+  mood_score?: MoodScore | null
+  hidden_logic?: string | null
   choices: Array<{
     key: string
     text: string
@@ -41,12 +50,14 @@ type Props = {
   instanceId: string
   instanceData: InstanceData
   accessToken: string | null
+  onNodeLoad?: (node: StoryNode | null) => void
 }
 
 export default function MultiverseStoryReader({
   instanceId,
   instanceData,
   accessToken,
+  onNodeLoad,
 }: Props) {
   const [currentNode, setCurrentNode] = useState<StoryNode | null>(null)
   const [loading, setLoading] = useState(true)
@@ -88,6 +99,7 @@ export default function MultiverseStoryReader({
       setLoading(false)
       setCurrentNode(null)
       setUserChoiceMade(null)
+      onNodeLoad?.(null)
       return
     }
 
@@ -116,6 +128,7 @@ export default function MultiverseStoryReader({
           const data = await response.json()
           if (data.node) {
             setCurrentNode(data.node)
+            onNodeLoad?.(data.node)
           }
           
           // Check if user already made a choice for this node

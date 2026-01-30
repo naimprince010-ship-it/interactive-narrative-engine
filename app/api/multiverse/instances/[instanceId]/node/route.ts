@@ -86,10 +86,19 @@ export async function GET(
 
     const stateData = stateRow?.state_data as {
       current_ai_node_id?: string
-      current_ai_content?: { character_perspectives: Record<string, string>; narrator_summary: string }
+      current_ai_content?: {
+        character_perspectives: Record<string, string>
+        narrator_summary: string
+        mood_score?: { tension?: number; romance?: number; mystery?: number; hope?: number }
+        hidden_logic?: string
+      }
     } | null
+    let mood_score: { tension?: number; romance?: number; mystery?: number; hope?: number } | null = null
+    let hidden_logic: string | null = null
     if (stateData?.current_ai_node_id === nodeId && stateData?.current_ai_content) {
       narrator_summary = stateData.current_ai_content.narrator_summary
+      mood_score = stateData.current_ai_content.mood_score ?? null
+      hidden_logic = stateData.current_ai_content.hidden_logic ?? null
       const templates = assignment.character_templates as { name: string } | { name: string }[] | undefined
       const myName = Array.isArray(templates) ? templates[0]?.name : templates?.name
       if (myName && stateData.current_ai_content.character_perspectives[myName]) {
@@ -107,6 +116,8 @@ export async function GET(
         is_ending: node.is_ending,
         ...(content_for_you != null && { content_for_you }),
         ...(narrator_summary != null && { narrator_summary }),
+        ...(mood_score != null && { mood_score }),
+        ...(hidden_logic != null && { hidden_logic }),
       },
       userChoice: userChoice ? { choice_key: userChoice.choice_key } : null,
     })

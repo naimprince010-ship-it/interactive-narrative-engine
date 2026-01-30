@@ -1,20 +1,36 @@
 /**
- * AI Story Orchestrator (Phase 3)
- * System prompt + JSON output (character_perspectives, narrator_summary, next_node)
- * Token efficiency: only last 2–3 nodes summary (buffer)
+ * AI Story Orchestrator — Dungeon Master of the multiverse
+ * - System prompt + Secret Character Profile injection every turn
+ * - Conversation Buffer: last 3 nodes from story_state (token truncation)
+ * - Zod schema validation; auto-retry on parse fail or missing character_perspectives
+ * - Multiverse forking: when choices are drastically different → new branch_id (ai_branch_*)
+ * - mood_score (emotional tone); hidden_logic (the "why" for debugging)
  */
 
 import OpenAI from 'openai'
+import { z } from 'zod'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 })
 
-export type OrchestratorOutput = {
-  character_perspectives: Record<string, string>
-  narrator_summary: string
-  next_node: string
-}
+// Zod schema for AI response — validate structure, reduce hallucinations
+const MoodScoreSchema = z.object({
+  tension: z.number().min(0).max(1).optional().default(0.5),
+  romance: z.number().min(0).max(1).optional().default(0),
+  mystery: z.number().min(0).max(1).optional().default(0),
+  hope: z.number().min(0).max(1).optional().default(0.5),
+})
+
+const OrchestratorOutputSchema = z.object({
+  character_perspectives: z.record(z.string(), z.string()),
+  narrator_summary: z.string(),
+  next_node: z.string(),
+  mood_score: MoodScoreSchema.optional(),
+  hidden_logic: z.string().optional(),
+})
+
+export type OrchestratorOutput = z.infer<typeof OrchestratorOutputSchema>
 
 export type CharacterProfile = {
   name: string
@@ -27,8 +43,13 @@ export type ChoiceByCharacter = {
   choice_text: string
 }
 
+const MAX_RETRIES = 2
+const BUFFER_NODES = 3
+
 /**
- * Build system prompt: story context, secret profiles, buffer, choices
+ * Detailed System Prompt: AI as Dungeon Master; Secret Character Profile injected every turn.
+ * - Perspective Leakage: FORBID mentioning Character A's secret details in Character B's perspective.
+ * - Context Overflow: Initial Story Setting is ALWAYS at top; only the middle history (buffer) is truncated to last BUFFER_NODES.
  */
 export function buildOrchestratorPrompt(
   storyTitle: string,
@@ -36,11 +57,14 @@ export function buildOrchestratorPrompt(
   currentNodeContent: string,
   characterProfiles: CharacterProfile[],
   buffer: Array<{ node_key: string; title: string; summary: string }>,
-  choicesByCharacter: ChoiceByCharacter[]
+  choicesByCharacter: ChoiceByCharacter[],
+  options?: { shorterRetry?: boolean; initialStorySetting?: string }
 ): string {
-  const bufferText =
+  // Only truncate the middle history; keep Initial Story Setting always at top (passed in)
+  const truncatedBuffer =
     buffer.length > 0
       ? buffer
+          .slice(-BUFFER_NODES)
           .map((b) => `- ${b.title}: ${b.summary}`)
           .join('\n')
       : 'No previous nodes.'
@@ -53,74 +77,133 @@ export function buildOrchestratorPrompt(
     .map((c) => `${c.character_name} chose "${c.choice_text}" (key: ${c.choice_key})`)
     .join('\n')
 
-  return `You are the story orchestrator for an interactive multiverse story. The story title is: ${storyTitle}.
+  const characterNamesList = characterProfiles.map((p) => p.name).join(', ')
+  const initialSetting =
+    options?.initialStorySetting?.trim() || `Story: ${storyTitle}. Core plot and tone must stay consistent.`
 
-Current scene: ${currentNodeTitle}
-Current scene content: ${currentNodeContent}
+  if (options?.shorterRetry) {
+    return `Initial Story Setting (keep): ${initialSetting}\n\nStory: ${storyTitle}. Scene: ${currentNodeTitle}. Choices: ${choicesText}. Respond with ONLY valid JSON, no markdown. Required keys: character_perspectives (object with keys: ${characterNamesList}), narrator_summary (string), next_node (string, e.g. ai_branch_xxx), mood_score (object: tension, romance, mystery, hope 0-1), hidden_logic (string). Do NOT put Character A's secrets in Character B's perspective.`
+  }
 
-Character profiles (secret – use for perspective text only):
+  return `You are the Dungeon Master of an interactive multiverse story.
+
+## Initial Story Setting (ALWAYS keep — core plot rules; do not truncate)
+${initialSetting}
+
+## Secret Character Profiles (inject into every turn — never break character)
 ${profilesText}
 
-Recent story buffer (last 2–3 nodes, for context only – keep responses token-efficient):
-${bufferText}
+CRITICAL — Perspective Leakage: Each character's perspective text must contain ONLY what that character would know, see, or feel. NEVER mention Character A's secret details (from their profile) inside Character B's perspective. Each perspective is that character's private view; no leaking other characters' backstories or secrets.
 
-Choices just made by each character:
+## Current scene
+Title: ${currentNodeTitle}
+Content: ${currentNodeContent}
+
+## Conversation Buffer (last ${BUFFER_NODES} nodes only — middle history; use for continuity, stay token-efficient)
+${truncatedBuffer}
+
+## Choices just made
 ${choicesText}
 
-Your task:
-1. Write a SHORT narrator_summary (2–4 sentences) that advances the story based on these choices. Mix of Bengali and English is fine.
-2. For each character, write a SHORT character_perspectives entry (1–3 sentences) – what that character sees/feels/thinks in this moment. Use their name as key. Keep it in-character and token-efficient.
-3. Decide next_node: either a pre-defined key like "ending_happy" or a new AI branch key like "ai_branch_conflict" (no spaces). If the choices clearly point to one outcome, use a simple key; if conflicting, use ai_branch_*.
+## Your task
+1. narrator_summary: 2–4 sentences advancing the story. Bengali + English mix OK. Token-efficient.
+2. character_perspectives: For EVERY character (${characterNamesList}), one short entry (1–3 sentences). Key = exact character name. In-character. NEVER put another character's secret or backstory in a character's perspective — only that character's own view.
+3. next_node: If choices agree → use a pre-defined key like "ending_happy". If choices are DRASTICALLY DIFFERENT or conflicting → create a NEW branch: "ai_branch_" + short_id. Do NOT force the story back to the main plot when players diverge — fork the multiverse.
+4. mood_score: Emotional tone for this beat. Numbers 0–1. E.g. tension, romance, mystery, hope. Frontend will use for music/atmosphere.
+5. hidden_logic: One sentence explaining WHY you took the story in this direction (for debugging and quality).
 
-Respond with ONLY a valid JSON object, no markdown, no extra text:
-{"character_perspectives":{"CharacterName":"...","OtherName":"..."},"narrator_summary":"...","next_node":"..."}`
+Respond with ONLY a valid JSON object, no markdown:
+{"character_perspectives":{"<name>":"..."}, "narrator_summary":"...", "next_node":"...", "mood_score":{"tension":0.5,"romance":0,"mystery":0,"hope":0.5}, "hidden_logic":"..."}`
 }
 
 /**
- * Call OpenAI and parse JSON output
+ * Parse and validate with Zod. Returns null if invalid.
  */
-export async function callOrchestrator(prompt: string): Promise<OrchestratorOutput> {
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('[aiOrchestrator] No OPENAI_API_KEY, using fallback')
-    return getFallbackOrchestratorOutput()
-  }
-
+function parseAndValidate(raw: string, requiredCharacterNames: string[]): OrchestratorOutput | null {
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 500,
-      temperature: 0.7,
-    })
-
-    const raw = completion.choices[0]?.message?.content?.trim()
-    if (!raw) {
-      return getFallbackOrchestratorOutput()
+    const json = JSON.parse(raw) as unknown
+    const parsed = OrchestratorOutputSchema.safeParse(json)
+    if (!parsed.success) {
+      console.warn('[aiOrchestrator] Zod validation failed:', parsed.error.flatten())
+      return null
     }
-
-    const parsed = JSON.parse(raw) as OrchestratorOutput
-    if (
-      !parsed.character_perspectives ||
-      typeof parsed.narrator_summary !== 'string' ||
-      typeof parsed.next_node !== 'string'
-    ) {
-      console.warn('[aiOrchestrator] Invalid shape, using fallback')
-      return getFallbackOrchestratorOutput()
+    const out = parsed.data
+    // Validation: every required character must have a perspective
+    for (const name of requiredCharacterNames) {
+      if (!out.character_perspectives[name] || typeof out.character_perspectives[name] !== 'string') {
+        console.warn('[aiOrchestrator] Missing character_perspectives for:', name)
+        return null
+      }
     }
-
-    return parsed
-  } catch (error) {
-    console.error('[aiOrchestrator] Error:', error)
-    return getFallbackOrchestratorOutput()
+    return out
+  } catch {
+    return null
   }
 }
 
-function getFallbackOrchestratorOutput(): OrchestratorOutput {
+/**
+ * Call OpenAI and parse JSON. Auto-retry: if parsing fails or character_perspectives missing, retry with shorter prompt.
+ */
+export async function callOrchestrator(
+  prompt: string,
+  requiredCharacterNames: string[],
+  shortPrompt?: string
+): Promise<OrchestratorOutput> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('[aiOrchestrator] No OPENAI_API_KEY, using fail-safe output')
+    return getFailSafeOrchestratorOutput(requiredCharacterNames)
+  }
+
+  let lastError: unknown
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const usePrompt = attempt > 0 && shortPrompt ? shortPrompt : prompt
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: usePrompt }],
+        max_tokens: 500,
+        temperature: 0.7,
+      })
+
+      const raw = completion.choices[0]?.message?.content?.trim()
+      if (!raw) continue
+
+      const parsed = parseAndValidate(raw, requiredCharacterNames)
+      if (parsed) {
+        if (attempt > 0) console.log('[aiOrchestrator] Succeeded on retry', attempt)
+        return parsed
+      }
+    } catch (error) {
+      lastError = error
+      console.warn('[aiOrchestrator] Attempt', attempt + 1, 'failed:', error)
+    }
+  }
+
+  console.error('[aiOrchestrator] All retries failed:', lastError)
+  return getFailSafeOrchestratorOutput(requiredCharacterNames)
+}
+
+/**
+ * Fail-safe: when Zod still fails after MAX_RETRIES, return generic text for all characters
+ * so the instance does not get stuck forever.
+ */
+function getFailSafeOrchestratorOutput(characterNames: string[]): OrchestratorOutput {
+  const genericText = 'The story continues. Everyone carries their own thoughts.'
+  const perspectives: Record<string, string> = {}
+  for (const name of characterNames) {
+    perspectives[name] = genericText
+  }
+  if (Object.keys(perspectives).length === 0) perspectives.Default = genericText
   return {
-    character_perspectives: {
-      Default: 'The story continues. Everyone reacts to what just happened.',
-    },
+    character_perspectives: perspectives,
     narrator_summary: 'The group moves forward, each carrying their own thoughts.',
     next_node: 'ai_branch_fallback',
+    mood_score: { tension: 0.5, romance: 0, mystery: 0, hope: 0.5 },
+    hidden_logic: 'Fail-safe: Zod validation failed after retries; generic output to avoid stuck instance.',
   }
+}
+
+/** Alias for when no API key — same generic output so instance never gets stuck. */
+function getFallbackOrchestratorOutput(characterNames: string[]): OrchestratorOutput {
+  return getFailSafeOrchestratorOutput(characterNames)
 }

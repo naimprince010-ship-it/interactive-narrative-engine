@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { getSupabaseClient } from '@/lib/supabaseClient'
 import { useInstanceRealtime } from '@/lib/useInstanceRealtime'
+import { useStoryAtmosphere } from '@/lib/useStoryAtmosphere'
 import MultiverseStoryReader from '@/components/multiverse/MultiverseStoryReader'
 import InstanceStatus from '@/components/multiverse/InstanceStatus'
 import CharacterChat from '@/components/multiverse/CharacterChat'
@@ -36,7 +37,10 @@ export default function PlayMultiverseStoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [moodScore, setMoodScore] = useState<{ tension?: number; romance?: number; mystery?: number; hope?: number } | null>(null)
   const loadInstanceDataRef = useRef<() => Promise<void>>(async () => {})
+
+  const atmosphere = useStoryAtmosphere(moodScore)
 
   // Phase 4: Realtime — refetch instance when story_instances or story_state changes
   useInstanceRealtime(instanceId, () => loadInstanceDataRef.current?.())
@@ -158,7 +162,7 @@ export default function PlayMultiverseStoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className={`min-h-screen transition-[background] duration-700 ${atmosphere.gradientClass}`}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -206,6 +210,7 @@ export default function PlayMultiverseStoryPage() {
               instanceId={instanceId}
               instanceData={instanceData}
               accessToken={accessToken}
+              onNodeLoad={(node) => setMoodScore(node?.mood_score ?? null)}
             />
           </div>
 

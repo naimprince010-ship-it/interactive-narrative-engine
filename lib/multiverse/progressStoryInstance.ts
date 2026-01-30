@@ -49,7 +49,12 @@ type UserChoiceRow = {
 
 type StoryStateData = {
   node_history?: Array<{ node_key: string; title: string; summary: string }>
-  current_ai_content?: { character_perspectives: Record<string, string>; narrator_summary: string }
+  current_ai_content?: {
+    character_perspectives: Record<string, string>
+    narrator_summary: string
+    mood_score?: { tension?: number; romance?: number; mystery?: number; hope?: number }
+    hidden_logic?: string
+  }
   current_ai_node_id?: string
 }
 
@@ -80,7 +85,7 @@ async function loadInstanceData(instanceId: string) {
 
   const { data: story } = await supabase
     .from('stories')
-    .select('id, title')
+    .select('id, title, description')
     .eq('id', (instance as InstanceRow).story_id)
     .single()
 
@@ -208,7 +213,7 @@ async function getPredefinedNextNodeId(
 async function upsertStoryState(
   instanceId: string,
   nodeHistory: Array<{ node_key: string; title: string; summary: string }>,
-  currentAiContent?: { character_perspectives: Record<string, string>; narrator_summary: string },
+  currentAiContent?: StoryStateData['current_ai_content'],
   currentAiNodeId?: string
 ) {
   const supabase = getSupabaseServerClient()
@@ -303,24 +308,41 @@ export async function progressStoryInstance(instanceId: string): Promise<void> {
   }
 
   const storyTitle = (story as { title?: string })?.title ?? 'Story'
+  const storyDesc = (story as { description?: string })?.description
+  const initialStorySetting = storyDesc
+    ? `${storyTitle}. ${storyDesc}`
+    : undefined
+  const requiredCharacterNames = characterProfiles.map((p) => p.name)
   const prompt = buildOrchestratorPrompt(
     storyTitle,
     currentNode.title,
     currentNode.content,
     characterProfiles,
     buffer,
-    choicesByCharacter
+    choicesByCharacter,
+    { initialStorySetting }
+  )
+  const shortPrompt = buildOrchestratorPrompt(
+    storyTitle,
+    currentNode.title,
+    currentNode.content,
+    characterProfiles,
+    buffer,
+    choicesByCharacter,
+    { shorterRetry: true, initialStorySetting }
   )
 
   let output: OrchestratorOutput
   try {
-    output = await callOrchestrator(prompt)
+    output = await callOrchestrator(prompt, requiredCharacterNames, shortPrompt)
   } catch (e) {
     console.error('[progressStoryInstance] Orchestrator error:', e)
     output = {
-      character_perspectives: { Default: 'The story continues.' },
+      character_perspectives: Object.fromEntries(requiredCharacterNames.map((n) => [n, 'The story continues.'])),
       narrator_summary: 'The group moves on.',
       next_node: 'ai_branch_fallback',
+      mood_score: { tension: 0.5, romance: 0, mystery: 0, hope: 0.5 },
+      hidden_logic: 'Fallback: orchestrator error.',
     }
   }
 
@@ -365,6 +387,8 @@ export async function progressStoryInstance(instanceId: string): Promise<void> {
   await upsertStoryState(instanceId, nodeHistory, {
     character_perspectives: output.character_perspectives,
     narrator_summary: output.narrator_summary,
+    mood_score: output.mood_score,
+    hidden_logic: output.hidden_logic,
   }, nextNodeId)
 
   console.log(`[progressStoryInstance] ✅ Instance ${instanceId} progressed to AI branch: ${nextNodeKey}`)
