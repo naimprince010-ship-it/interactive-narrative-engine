@@ -74,13 +74,14 @@ export async function GET(
       .select('user_id, character_templates!inner(name, id)')
       .eq('instance_id', instanceId)
 
-    // Get user's character (for their perspective)
+    // Get user's character (for their perspective) + health & inventory (Action-Oriented)
     const { data: userCharacter } = await supabase
       .from('character_assignments')
-      .select('character_templates!inner(name, id, description), is_revealed')
+      .select('character_templates!inner(name, id, description), is_revealed, health, inventory')
       .eq('instance_id', instanceId)
       .eq('user_id', userId)
       .single()
+    // If migration not run, health/inventory may be missing — default to 100 and []
 
     // Type-safe character mapping with bot identification
     const formattedCharacters = (characters || []).map((c: any) => {
@@ -101,11 +102,14 @@ export async function GET(
           const template = Array.isArray(userCharacter.character_templates)
             ? userCharacter.character_templates[0]
             : userCharacter.character_templates
+          const raw = userCharacter as { health?: number; inventory?: string[] }
           return {
             name: template?.name || '',
             id: template?.id || '',
             description: template?.description || '',
             isRevealed: userCharacter.is_revealed || false,
+            health: raw.health ?? 100,
+            inventory: Array.isArray(raw.inventory) ? raw.inventory : [],
           }
         })()
       : null

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServerClient } from '@/lib/supabaseServer'
 import { processBotChoices, checkAndProgressStory } from '@/lib/multiverse/botLogic'
+import { applyHealthDamage, getChoiceRisk, countActivePlayers } from '@/lib/multiverse/participantState'
 
 export const runtime = 'nodejs'
 
@@ -85,13 +86,27 @@ export async function POST(
 
     console.log(`[choices] User ${userId} submitted choice ${choiceKey} for node ${nodeId}`)
 
-    // Check if all players have made choices (including bots)
-    // This will also trigger bot choices if needed
-    // Get total players count
-    const { count: totalPlayers } = await supabase
+    // Action-Oriented: apply HP damage if choice is risky/dangerous
+    const { data: node } = await supabase
+      .from('story_nodes')
+      .select('choices')
+      .eq('id', nodeId)
+      .single()
+    const choices = (node?.choices as Array<{ key: string; dangerous?: boolean; risk_hp?: number }>) ?? []
+    const choiceDef = choices.find((c) => c.key === choiceKey)
+    if (choiceDef) {
+      const risk = getChoiceRisk(choiceDef as { key: string; dangerous?: boolean; risk_hp?: number })
+      if (risk > 0) {
+        await applyHealthDamage(instanceId, userId, risk, `choice_${choiceKey}`)
+      }
+    }
+
+    // Active players only (health > 0); spectators don't block
+    const { data: assignments } = await supabase
       .from('character_assignments')
-      .select('*', { count: 'exact', head: true })
+      .select('health')
       .eq('instance_id', instanceId)
+    const totalPlayers = countActivePlayers((assignments ?? []) as Array<{ health?: number | null }>)
 
     // Get current choices count
     const { count: choiceCount } = await supabase
@@ -105,9 +120,9 @@ export async function POST(
     // Process bot choices and story progression - await to ensure execution
     // Vercel serverless functions can handle up to 10 seconds execution time
     // Bot choices with reduced delays should complete within this time
-    if ((choiceCount || 0) < (totalPlayers || 0)) {
+    if ((choiceCount || 0) < totalPlayers) {
       console.log(`[choices] Triggering bot choices for remaining players...`)
-      console.log(`[choices] Missing ${(totalPlayers || 0) - (choiceCount || 0)} choice(s)`)
+      console.log(`[choices] Missing ${totalPlayers - (choiceCount || 0)} choice(s)`)
       // Await bot choices to ensure they execute before function returns
       try {
         await processBotChoices(instanceId, nodeId)

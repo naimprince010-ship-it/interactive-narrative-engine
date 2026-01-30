@@ -43,6 +43,8 @@ type InstanceData = {
     id: string
     description: string
     isRevealed: boolean
+    health?: number
+    inventory?: string[]
   } | null
 }
 
@@ -63,10 +65,47 @@ export default function MultiverseStoryReader({
   const [loading, setLoading] = useState(true)
   const [submittingChoice, setSubmittingChoice] = useState(false)
   const [userChoiceMade, setUserChoiceMade] = useState<string | null>(null)
+  const [choiceSecondsLeft, setChoiceSecondsLeft] = useState<number | null>(null)
   const refetchNodeRef = useRef<() => void>(() => {})
+  const CHOICE_TIMER_SEC = 15
 
   // Phase 4: Realtime — refetch node when story_instances or story_state changes (content_for_you, choices, is_ending)
   useInstanceRealtime(instanceId, () => refetchNodeRef.current?.())
+
+  // Real-time Survival Timer: 15s countdown; on 0 call timeout API (AI picks dangerous choice)
+  useEffect(() => {
+    if (
+      !currentNode?.choices?.length ||
+      userChoiceMade ||
+      submittingChoice ||
+      !accessToken ||
+      (instanceData.myCharacter?.health != null && instanceData.myCharacter.health <= 0)
+    ) {
+      setChoiceSecondsLeft(null)
+      return
+    }
+    setChoiceSecondsLeft(CHOICE_TIMER_SEC)
+    const t = setInterval(() => {
+      setChoiceSecondsLeft((s) => {
+        if (s == null || s <= 1) {
+          clearInterval(t)
+          if (s === 1) {
+            fetch(`/api/multiverse/instances/${instanceId}/choices/timeout`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ nodeId: currentNode.id }),
+            }).catch((e) => console.error('Timeout choice failed:', e))
+          }
+          return null
+        }
+        return s - 1
+      })
+    }, 1000)
+    return () => clearInterval(t)
+  }, [currentNode?.id, currentNode?.choices?.length, userChoiceMade, submittingChoice, accessToken, instanceId, instanceData.myCharacter?.health])
 
   // When user has submitted choice and is "waiting for other players", trigger bot choices
   // as a fallback (in case initial POST /choices didn't complete bot processing on serverless)
@@ -289,6 +328,22 @@ export default function MultiverseStoryReader({
         </div>
       </div>
 
+      {/* HP Bar (Action-Oriented) */}
+      {instanceData.myCharacter?.health != null && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-sm text-purple-200 mb-1">
+            <span>Health</span>
+            <span>{instanceData.myCharacter.health <= 0 ? 'Out (Spectator)' : `${instanceData.myCharacter.health}/100`}</span>
+          </div>
+          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${instanceData.myCharacter.health <= 0 ? 'bg-red-900' : instanceData.myCharacter.health <= 30 ? 'bg-red-500' : 'bg-green-500'}`}
+              style={{ width: `${Math.max(0, instanceData.myCharacter.health)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Character Info (if revealed) */}
       {instanceData.myCharacter?.isRevealed && (
         <div className="mb-6 p-4 bg-purple-900/50 rounded-lg border border-purple-500/50">
@@ -305,6 +360,18 @@ export default function MultiverseStoryReader({
       {/* Choices */}
       {availableChoices.length > 0 && (
         <div className="mt-8">
+          {choiceSecondsLeft != null && choiceSecondsLeft > 0 && !userChoiceMade && (
+            <div className="mb-4 flex items-center gap-2 text-red-400 font-mono text-lg">
+              <span className="animate-pulse">⏱</span>
+              <span>{choiceSecondsLeft}s</span>
+              <span className="text-sm text-red-300">— choose or AI picks a risky choice</span>
+            </div>
+          )}
+          {instanceData.myCharacter?.health != null && instanceData.myCharacter.health <= 0 && (
+            <div className="mb-4 p-4 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200 text-center">
+              You&apos;re out in this timeline. You can watch as a spectator.
+            </div>
+          )}
           <h3 className="text-xl font-semibold text-white mb-4">Your Choices:</h3>
           {userChoiceMade ? (
             <div className="space-y-3">
@@ -328,6 +395,8 @@ export default function MultiverseStoryReader({
                 Waiting for other players to make their choices...
               </p>
             </div>
+          ) : instanceData.myCharacter?.health != null && instanceData.myCharacter.health <= 0 ? (
+            <p className="text-purple-300 text-sm">Spectator mode — no choices.</p>
           ) : (
             <div className="space-y-3">
               {availableChoices.map((choice) => (

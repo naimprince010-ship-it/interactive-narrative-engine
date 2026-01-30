@@ -14,6 +14,7 @@ import {
   type ChoiceByCharacter,
   type OrchestratorOutput,
 } from './aiOrchestrator'
+import { countActivePlayers } from './participantState'
 
 const NODE_HISTORY_MAX = 3
 const SUMMARY_MAX_LEN = 150
@@ -101,7 +102,7 @@ async function loadInstanceData(instanceId: string) {
 
   const { data: assignments } = await supabase
     .from('character_assignments')
-    .select('user_id, template_id, character_templates!inner(name, description)')
+    .select('user_id, template_id, character_templates!inner(name, description), health')
     .eq('instance_id', instanceId)
 
   const { data: userChoices } = await supabase
@@ -110,13 +111,9 @@ async function loadInstanceData(instanceId: string) {
     .eq('instance_id', instanceId)
     .eq('node_id', currentNodeId)
 
-  const { count: totalPlayers } = await supabase
-    .from('character_assignments')
-    .select('*', { count: 'exact', head: true })
-    .eq('instance_id', instanceId)
-
+  const totalActive = countActivePlayers((assignments ?? []) as Array<{ health?: number | null }>)
   const choiceCount = userChoices?.length ?? 0
-  if (choiceCount < (totalPlayers ?? 0)) {
+  if (choiceCount < totalActive) {
     return null
   }
 
