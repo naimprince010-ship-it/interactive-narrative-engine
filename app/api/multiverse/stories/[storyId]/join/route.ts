@@ -39,7 +39,10 @@ export async function POST(
       return NextResponse.json({ error: 'Missing storyId' }, { status: 400 })
     }
 
-    const result = await joinStory(userId, storyId)
+    const body = await request.json().catch(() => ({}))
+    const forceNewInstance = body?.forceNewInstance === true
+
+    const result = await joinStory(userId, storyId, { forceNewInstance })
 
     return NextResponse.json({
       success: true,

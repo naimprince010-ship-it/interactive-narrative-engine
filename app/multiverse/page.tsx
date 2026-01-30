@@ -77,7 +77,7 @@ export default function MultiverseStoriesPage() {
     loadStories()
   }, [genreFilter])
 
-  const handleJoinStory = async (storyId: string) => {
+  const handleJoinStory = async (storyId: string, forceNewInstance = false) => {
     if (!accessToken) {
       router.push('/login')
       return
@@ -90,6 +90,7 @@ export default function MultiverseStoriesPage() {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ forceNewInstance }),
       })
 
       const data = await response.json()
@@ -99,7 +100,15 @@ export default function MultiverseStoriesPage() {
         return
       }
 
-      // Redirect to story instance
+      // If user already finished this story in another timeline, suggest new branch
+      if (data.hasCompletedStory) {
+        const go = window.confirm(
+          "You've finished this timeline! Want to try a different branch? (You'll get a fresh instance.)"
+        )
+        if (!go) return
+      }
+
+      // Redirect to this instance (unique timeline)
       router.push(`/multiverse/play/${data.instanceId}`)
     } catch (error) {
       console.error('Failed to join story:', error)
@@ -166,15 +175,23 @@ export default function MultiverseStoriesPage() {
                 <p className="text-purple-200 mb-4 line-clamp-3">
                   {story.description || 'No description available'}
                 </p>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-purple-300">
-                    👥 {story.max_players} players
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-purple-300">
+                      👥 {story.max_players} players
+                    </div>
+                    <button
+                      onClick={() => handleJoinStory(story.id)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Join Story
+                    </button>
                   </div>
                   <button
-                    onClick={() => handleJoinStory(story.id)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    onClick={() => handleJoinStory(story.id, true)}
+                    className="text-sm text-purple-300 hover:text-purple-200 underline text-left"
                   >
-                    Join Story
+                    Join New Multiverse (fresh timeline)
                   </button>
                 </div>
               </div>

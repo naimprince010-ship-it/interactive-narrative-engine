@@ -14,17 +14,40 @@ type JoinStoryResult = {
   currentNodeId: string | null
   instanceStatus: 'WAITING' | 'ACTIVE' | 'COMPLETED'
   message: string
+  /** True if user has finished this story in any timeline (suggest new branch) */
+  hasCompletedStory?: boolean
 }
 
 /**
- * Join a story - finds available instance or creates new one
- * Assigns character secretly to user
+ * Join a story — Dynamic Instance Mapping.
+ * - Find WAITING instance with player_count < max_players; if slot free, join that.
+ * - If none or all full, create NEW story_instance (fresh multiverse timeline).
+ * - Option forceNewInstance: always create new instance (Join New Multiverse).
  */
 export async function joinStory(
   userId: string,
-  storyId: string
+  storyId: string,
+  options?: { forceNewInstance?: boolean }
 ): Promise<JoinStoryResult> {
   const supabase = getSupabaseServerClient()
+  const forceNewInstance = options?.forceNewInstance === true
+
+  // Check if user has COMPLETED this story in any instance (for "try different branch" popup)
+  const { data: completedAssignments } = await supabase
+    .from('character_assignments')
+    .select('instance_id')
+    .eq('user_id', userId)
+  const instanceIds = (completedAssignments ?? []).map((a: { instance_id: string }) => a.instance_id)
+  let hasCompletedStory = false
+  if (instanceIds.length > 0) {
+    const { data: completedInstances } = await supabase
+      .from('story_instances')
+      .select('id')
+      .eq('story_id', storyId)
+      .eq('status', 'COMPLETED')
+      .in('id', instanceIds)
+    hasCompletedStory = (completedInstances?.length ?? 0) > 0
+  }
 
   // Step 1: Check if user already in ANY instance of this story (WAITING or ACTIVE)
   const { data: existingAssignment } = await supabase
@@ -189,6 +212,7 @@ export async function joinStory(
                 currentNodeId: refreshedInstance!.current_node_id,
                 instanceStatus: refreshedInstance!.status as 'WAITING' | 'ACTIVE' | 'COMPLETED',
                 message: 'Story instance activated! All players joined.',
+                hasCompletedStory,
               }
             }
           }
@@ -205,10 +229,12 @@ export async function joinStory(
       message: instance!.status === 'ACTIVE'
         ? 'Already in active story instance'
         : 'Already in story instance (waiting for players)',
+      hasCompletedStory,
     }
   }
 
-  // Step 2: Find available instance with empty slot
+  // Step 2: Find WAITING instance with empty slot (player_count < max_players)
+  // Only WAITING — so each group starts a fresh timeline; never join mid-ACTIVE.
   const { data: story } = await supabase
     .from('stories')
     .select('id, max_players')
@@ -219,30 +245,31 @@ export async function joinStory(
     throw new Error('Story not found')
   }
 
-  // Get instances with available slots
-  const { data: instances } = await supabase
-    .from('story_instances')
-    .select('id, status')
-    .eq('story_id', storyId)
-    .in('status', ['WAITING', 'ACTIVE'])
-    .order('created_at', { ascending: true })
-
   let targetInstanceId: string | null = null
 
-  // Check each instance for available slots
-  for (const instance of instances || []) {
-    const { count } = await supabase
-      .from('character_assignments')
-      .select('*', { count: 'exact', head: true })
-      .eq('instance_id', instance.id)
+  if (!forceNewInstance) {
+    // Get WAITING instances only (not ACTIVE — no mid-story join)
+    const { data: instances } = await supabase
+      .from('story_instances')
+      .select('id, status')
+      .eq('story_id', storyId)
+      .eq('status', 'WAITING')
+      .order('created_at', { ascending: true })
 
-    if ((count || 0) < story.max_players) {
-      targetInstanceId = instance.id
-      break
+    for (const instance of instances || []) {
+      const { count } = await supabase
+        .from('character_assignments')
+        .select('*', { count: 'exact', head: true })
+        .eq('instance_id', instance.id)
+
+      if ((count || 0) < story.max_players) {
+        targetInstanceId = instance.id
+        break
+      }
     }
   }
 
-  // Step 3: If no available instance, create new one
+  // Step 3: If no available WAITING instance (or forceNewInstance), create new one
   if (!targetInstanceId) {
     const { data: newInstance, error: instanceError } = await supabase
       .from('story_instances')
@@ -439,5 +466,6 @@ export async function joinStory(
     message: finalPlayerCount === story.max_players
       ? 'Story instance activated! All players joined.'
       : `Waiting for ${story.max_players - (finalPlayerCount || 0)} more players...`,
+    hasCompletedStory,
   }
 }
