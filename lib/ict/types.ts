@@ -13,6 +13,8 @@ export type Topic = {
   title: string
   concepts: string[]
   examples?: string[]
+  /** Step-by-step formula creation in Excel (NCTB Ch4) */
+  formulaSteps?: string[]
   quizQuestions?: QuizQuestion[]
   /** Image URL for multi-modal learning (e.g. Network Topology, Charles Babbage) */
   imageUrl?: string

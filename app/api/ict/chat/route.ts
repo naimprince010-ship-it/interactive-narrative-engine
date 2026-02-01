@@ -89,8 +89,8 @@ function buildOptions(
         { id: 'ch1', title: 'তথ্য ও যোগাযোগ প্রযুক্তি পরিচিতি' },
         { id: 'ch2', title: 'কম্পিউটার ও এর ব্যবহার' },
         { id: 'ch3', title: 'সংখ্যা পদ্ধতি' },
-        { id: 'ch4', title: 'স্প্রেডশিট' },
-        { id: 'ch5', title: 'ইন্টারনেট ও ইমেইল' },
+        { id: 'ch4', title: 'আমার লেখালেখি ও হিসাব' },
+        { id: 'ch5', title: 'মাল্টিমিডিয়া ও গ্রাফিক্স' },
         { id: 'ch6', title: 'প্রোগ্রামিং পরিচিতি' },
       ]
     const opts = list.map((ch) => ({ label: ch.title, action: `select_chapter:${ch.id}` }))

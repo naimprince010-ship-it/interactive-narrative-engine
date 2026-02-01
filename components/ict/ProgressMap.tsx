@@ -7,7 +7,7 @@ const CHAPTERS: Chapter[] = [
   { id: 'ch2', title: 'কম্পিউটার' },
   { id: 'ch3', title: 'সংখ্যা পদ্ধতি' },
   { id: 'ch4', title: 'স্প্রেডশিট' },
-  { id: 'ch5', title: 'ইন্টারনেট ও ইমেইল' },
+  { id: 'ch5', title: 'মাল্টিমিডিয়া ও গ্রাফিক্স' },
   { id: 'ch6', title: 'প্রোগ্রামিং' },
 ]
 

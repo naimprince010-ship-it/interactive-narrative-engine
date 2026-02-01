@@ -57,7 +57,11 @@ export async function getTopicContent(topicId: string): Promise<TopicContentResu
   const examples = topic.examples?.length
     ? `\n\nউদাহরণ:\n${topic.examples.map((e) => `• ${e}`).join('\n')}`
     : ''
-  const text = `**${topic.title}**\n\nমূল ধারণা:\n• ${concepts}${examples}\n\nবুঝতে পারলেন? "পরবর্তী টপিক" এ যেতে পারেন অথবা "আরও সহজে ব্যাখ্যা" চাইতে পারেন।`
+  const formulaSteps =
+    topic.formulaSteps?.length
+      ? `\n\nএক্সেলে সূত্র তৈরির ধাপ:\n${topic.formulaSteps.map((s, i) => `  ${i + 1}. ${s}`).join('\n')}`
+      : ''
+  const text = `**${topic.title}**\n\nমূল ধারণা:\n• ${concepts}${examples}${formulaSteps}\n\nবুঝতে পারলেন? "পরবর্তী টপিক" এ যেতে পারেন অথবা "আরও সহজে ব্যাখ্যা" চাইতে পারেন।`
   return { text, imageUrl: topic.imageUrl }
 }
 
@@ -67,9 +71,14 @@ const TOPIC_ANALOGIES: Record<string, string> = {
   'ch1-t2': 'ICT যেমন পোস্ট অফিস — তথ্য এক জায়গা থেকে অন্য জায়গায় পৌঁছে দেয়, ঠিক চিঠির মতো।',
   'ch2-t1': 'কম্পিউটার যেমন রেসিপে — আপনি ইনপুট দেন (উপাদান), প্রক্রিয়া হয় (রান্না), আউটপুট আসে (খাবার)।',
   'ch3-t1': 'বাইনারি যেমন সিঁড়ির আলো — হয় জ্বলে (১) নয় নিভে (০)। শুধু দুটো স্টেট।',
+  'ch4-t0': 'ওয়ার্ড প্রসেসর যেমন ডিজিটাল খাতা — লিখুন, সংশোধন করুন, সাজান; সব কিছু সহজে।',
   'ch4-t1': 'স্প্রেডশিট যেমন খাতা — সারি আর কলাম দিয়ে টেবিল; প্রতিটি ঘর একটা নির্দিষ্ট জায়গা।',
-  'ch4-t2': 'SUM যেমন দোকানের বিল — সব জিনিসের দাম যোগ করলে মোট বিল। AVERAGE হলো গড় — মোটকে ভাগ করে নেওয়া।',
-  'ch5-t1': 'ইন্টারনেট যেমন বিশ্বের সড়ক — যেকোনো জায়গায় তথ্য যাতায়াত করতে পারে।',
+  'ch4-t2': 'সূত্র যেমন রেসিপি — ধাপে ধাপে (=, ফাংশন, এন্টার) অনুসরণ করলে ফলাফল মেলে।',
+  'ch4-t3': 'SUM যেমন দোকানের বিল — সব জিনিসের দাম যোগ করলে মোট বিল। AVERAGE হলো গড় — মোটকে ভাগ করে নেওয়া।',
+  'ch5-t1': 'মাল্টিমিডিয়া যেমন পিজা পার্টি — টেক্সট, ছবি, শব্দ, ভিডিও একসাথে পরিবেশন।',
+  'ch5-t2': 'অ্যানিমেশন যেমন ফ্লিপ বুক — ছবি ধাপে ধাপে পালটালে চলমান মনে হয়।',
+  'ch5-t3': 'প্রেজেন্টেশন যেমন ক্লাসে বোর্ডে লেকচার — স্লাইড দিয়ে তথ্য সাজিয়ে দেখানো।',
+  'ch5-t4': 'ফটোশপ যেমন চিত্রকলার প্যালেট — ডিজিটাল ক্যানভাসে ছবি এডিট করা।',
   'ch6-t1': 'অ্যালগোরিদম যেমন রান্নার রেসিপি — ধাপে ধাপে নির্দেশ, যা অনুসরণ করলে ফলাফল মেলে।',
 }
 
@@ -99,9 +108,14 @@ const TOPIC_VIDEO_LINKS: Record<string, string> = {
   'ch1-t2': 'https://www.youtube.com/results?search_query=ICT+Information+Communication+Technology+Bangla',
   'ch2-t1': 'https://www.youtube.com/results?search_query=কম্পিউটার+ইনপুট+প্রক্রিয়াকরণ+আউটপুট',
   'ch3-t1': 'https://www.youtube.com/results?search_query=বাইনারি+সংখ্যা+পদ্ধতি+NCTB',
+  'ch4-t0': 'https://www.youtube.com/results?search_query=মাইক্রোসফট+ওয়ার্ড+টিউটোরিয়াল+বাংলা',
   'ch4-t1': 'https://www.youtube.com/results?search_query=স্প্রেডশিট+এক্সেল+টিউটোরিয়াল+বাংলা',
-  'ch4-t2': 'https://www.youtube.com/results?search_query=Excel+SUM+AVERAGE+ফাংশন+বাংলা',
-  'ch5-t1': 'https://www.youtube.com/results?search_query=ইন্টারনেট+ওয়েব+ইমেইল+NCTB',
+  'ch4-t2': 'https://www.youtube.com/results?search_query=এক্সেলে+সূত্র+তৈরি+ধাপ+বাংলা',
+  'ch4-t3': 'https://www.youtube.com/results?search_query=Excel+SUM+AVERAGE+ফাংশন+বাংলা',
+  'ch5-t1': 'https://www.youtube.com/results?search_query=মাল্টিমিডিয়া+ও+গ্রাফিক্স+NCTB',
+  'ch5-t2': 'https://www.youtube.com/results?search_query=অ্যানিমেশন+ভিডিও+বাংলা',
+  'ch5-t3': 'https://www.youtube.com/results?search_query=পাওয়ারপয়েন্ট+প্রেজেন্টেশন+বাংলা',
+  'ch5-t4': 'https://www.youtube.com/results?search_query=ফটোশপ+টিউটোরিয়াল+বাংলা',
   'ch6-t1': 'https://www.youtube.com/results?search_query=প্রোগ্রামিং+অ্যালগোরিদম+বাংলা+টিউটোরিয়াল',
 }
 
