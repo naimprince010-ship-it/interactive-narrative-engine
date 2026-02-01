@@ -10,7 +10,8 @@
     "lint": "next lint",
     "export": "next export",
     "analyze": "ANALYZE=true next build",
-    "test:api": "node scripts/test-api.js"
+    "test:api": "node scripts/test-api.js",
+    "ict:extract": "node scripts/extract-ict-structure.mjs"
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
@@ -23,6 +24,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "pdf-parse": "^1.1.1",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

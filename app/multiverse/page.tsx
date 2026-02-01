@@ -35,12 +35,17 @@ const GENRES = [
   { value: 'inspirational', label: 'অনুপ্রেরণাদায়ক' },
 ]
 
+type UserGender = 'male' | 'female' | ''
+type PendingJoin = { storyId: string; forceNewInstance: boolean } | null
+
 export default function MultiverseStoriesPage() {
   const router = useRouter()
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [genreFilter, setGenreFilter] = useState<string>('')
+  const [showGenderModal, setShowGenderModal] = useState(false)
+  const [pendingJoin, setPendingJoin] = useState<PendingJoin>(null)
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -77,11 +82,21 @@ export default function MultiverseStoriesPage() {
     loadStories()
   }, [genreFilter])
 
-  const handleJoinStory = async (storyId: string, forceNewInstance = false) => {
+  const openJoinModal = (storyId: string, forceNewInstance = false) => {
     if (!accessToken) {
       router.push('/login')
       return
     }
+    setPendingJoin({ storyId, forceNewInstance })
+    setShowGenderModal(true)
+  }
+
+  const handleJoinStory = async (userGender: UserGender) => {
+    if (!accessToken || !pendingJoin) return
+
+    setShowGenderModal(false)
+    const { storyId, forceNewInstance } = pendingJoin
+    setPendingJoin(null)
 
     try {
       const response = await fetch(`/api/multiverse/stories/${storyId}/join`, {
@@ -90,7 +105,10 @@ export default function MultiverseStoriesPage() {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ forceNewInstance }),
+        body: JSON.stringify({
+          forceNewInstance,
+          userGender: userGender === 'male' || userGender === 'female' ? userGender : undefined,
+        }),
       })
 
       const data = await response.json()
@@ -100,7 +118,6 @@ export default function MultiverseStoriesPage() {
         return
       }
 
-      // If user already finished this story in another timeline, suggest new branch
       if (data.hasCompletedStory) {
         const go = window.confirm(
           "You've finished this timeline! Want to try a different branch? (You'll get a fresh instance.)"
@@ -108,7 +125,6 @@ export default function MultiverseStoriesPage() {
         if (!go) return
       }
 
-      // Redirect to this instance (unique timeline)
       router.push(`/multiverse/play/${data.instanceId}`)
     } catch (error) {
       console.error('Failed to join story:', error)
@@ -181,14 +197,14 @@ export default function MultiverseStoriesPage() {
                       👥 {story.max_players} players
                     </div>
                     <button
-                      onClick={() => handleJoinStory(story.id)}
+                      onClick={() => openJoinModal(story.id)}
                       className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
                     >
                       Join Story
                     </button>
                   </div>
                   <button
-                    onClick={() => handleJoinStory(story.id, true)}
+                    onClick={() => openJoinModal(story.id, true)}
                     className="text-sm text-purple-300 hover:text-purple-200 underline text-left"
                   >
                     Join New Multiverse (fresh timeline)
@@ -208,6 +224,44 @@ export default function MultiverseStoriesPage() {
           </Link>
         </div>
       </div>
+
+      {/* Gender selection modal — বিপরীত লিঙ্গের চরিত্র পাবেন */}
+      {showGenderModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-purple-500/50 rounded-xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-2">আপনার লিঙ্গ নির্বাচন করুন</h3>
+            <p className="text-purple-200 text-sm mb-4">
+              আপনার বিপরীত লিঙ্গের চরিত্র assign করা হবে (পুরুষ → নারী চরিত্র, নারী → পুরুষ চরিত্র)
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleJoinStory('female')}
+                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              >
+                নারী (Female)
+              </button>
+              <button
+                onClick={() => handleJoinStory('male')}
+                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+              >
+                পুরুষ (Male)
+              </button>
+              <button
+                onClick={() => handleJoinStory('')}
+                className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 text-purple-200 rounded-lg transition-colors border border-white/20"
+              >
+                পছন্দ নেই (যেকোনো চরিত্র)
+              </button>
+              <button
+                onClick={() => { setShowGenderModal(false); setPendingJoin(null) }}
+                className="w-full py-2 text-purple-300 hover:text-white text-sm"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

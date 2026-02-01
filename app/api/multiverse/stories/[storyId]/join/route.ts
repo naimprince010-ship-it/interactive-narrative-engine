@@ -41,8 +41,12 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}))
     const forceNewInstance = body?.forceNewInstance === true
+    const userGender = body?.userGender as 'male' | 'female' | undefined
+    if (userGender && !['male', 'female'].includes(userGender)) {
+      return NextResponse.json({ error: 'Invalid userGender' }, { status: 400 })
+    }
 
-    const result = await joinStory(userId, storyId, { forceNewInstance })
+    const result = await joinStory(userId, storyId, { forceNewInstance, userGender })
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,11 @@
 import type { Metadata } from 'next'
+import { Noto_Sans_Bengali } from 'next/font/google'
 import './globals.css'
+
+const notoSansBengali = Noto_Sans_Bengali({
+  subsets: ['bengali', 'latin'],
+  variable: '--font-bangla',
+})
 
 export const metadata: Metadata = {
   title: 'Interactive Narrative Engine',
@@ -12,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="antialiased">{children}</body>
+    <html lang="bn" className={notoSansBengali.variable}>
+      <body className="antialiased font-sans">{children}</body>
     </html>
   )
 }

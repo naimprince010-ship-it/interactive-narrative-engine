@@ -35,6 +35,19 @@ export default function Home() {
             </Link>
           </div>
 
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl mb-8">
+            <h2 className="text-3xl font-semibold text-white mb-4">ICT টিউটর</h2>
+            <p className="text-purple-200 mb-4">
+              নবম-দশম শ্রেণির তথ্য ও যোগাযোগ প্রযুক্তি বই থেকে কথোপকথনের মাধ্যমে শিখুন। অধ্যায় বেছে নিন, কুইজ দিয়ে যাচাই করুন।
+            </p>
+            <Link
+              href="/ict-tutor"
+              className="inline-block bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-all shadow-lg hover:shadow-xl mb-6"
+            >
+              ICT টিউটরে যান
+            </Link>
+          </div>
+
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl">
             <h2 className="text-3xl font-semibold text-white mb-6">Featured Stories</h2>
             <div className="grid md:grid-cols-3 gap-6">

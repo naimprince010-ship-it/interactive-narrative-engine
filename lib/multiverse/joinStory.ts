@@ -24,13 +24,16 @@ type JoinStoryResult = {
  * - If none or all full, create NEW story_instance (fresh multiverse timeline).
  * - Option forceNewInstance: always create new instance (Join New Multiverse).
  */
+type UserGender = 'male' | 'female'
+
 export async function joinStory(
   userId: string,
   storyId: string,
-  options?: { forceNewInstance?: boolean }
+  options?: { forceNewInstance?: boolean; userGender?: UserGender }
 ): Promise<JoinStoryResult> {
   const supabase = getSupabaseServerClient()
   const forceNewInstance = options?.forceNewInstance === true
+  const userGender = options?.userGender
 
   // Check if user has COMPLETED this story in any instance (for "try different branch" popup)
   const { data: completedAssignments } = await supabase
@@ -299,20 +302,31 @@ export async function joinStory(
   // Get available characters (not yet assigned in this instance)
   let availableCharactersQuery = supabase
     .from('character_templates')
-    .select('id, name')
+    .select('id, name, gender')
     .eq('story_id', storyId)
 
   if (assignedIds.length > 0) {
     availableCharactersQuery = availableCharactersQuery.not('id', 'in', `(${assignedIds.join(',')})`)
   }
 
-  const { data: availableCharacters } = await availableCharactersQuery
+  const { data: allAvailable } = await availableCharactersQuery
 
-  if (!availableCharacters || availableCharacters.length === 0) {
+  if (!allAvailable || allAvailable.length === 0) {
     throw new Error('No available characters in story')
   }
 
-  // Step 5: Randomly assign character
+  // Step 5: Prefer opposite-gender character (female user → male char, male user → female char)
+  let availableCharacters = allAvailable
+  if (userGender) {
+    const oppositeGender = userGender === 'male' ? 'female' : 'male'
+    const oppositeChars = allAvailable.filter(
+      (c) => (c as { gender?: string | null }).gender === oppositeGender
+    )
+    if (oppositeChars.length > 0) {
+      availableCharacters = oppositeChars
+    }
+  }
+
   const randomIndex = Math.floor(Math.random() * availableCharacters.length)
   const assignedCharacter = availableCharacters[randomIndex]
 
