@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
       let finalFeedback = feedback
       if (topic && question && wrongAnswer && correctAnswer) {
         const aiExplanation = await generateAIQuizFeedback(
-          getContextForAI(book, { chapterId, topicId }),
+          getContextForAI(book, { phase: 'quiz', chapterId, topicId }),
           topic.title,
           topic.concepts,
           question,
