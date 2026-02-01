@@ -8,10 +8,12 @@ import {
   getTopicContent,
   getSimplerExplanation,
   getSimplerExplanationWithAnalogy,
+  getVisualOrVideoSuggestion,
   getQuizForTopic,
   evaluateAnswer,
   getContextForAI,
   getSuggestedWeakTopics,
+  getTopic,
 } from '@/lib/ict/narrativeController'
 import type { SessionState, OptionButton } from '@/lib/ict/types'
 
@@ -34,6 +36,45 @@ const ICT_TUTOR_SYSTEM = `তুমি একজন অভিজ্ঞ ICT ট�
 - সহানুভূতিশীল ও উৎসাহদায়ক; বইয়ের উদাহরণ দিয়ে সরল করো
 - বাংলায় উত্তর দাও; সংক্ষিপ্ত ও স্পষ্ট রাখো
 - নিশ্চিত না হলে বলো: "আমি এই টপিকটা বইতে আরও দেখে নিচ্ছি।"`
+
+/**
+ * Generate a simple, encouraging Bangla explanation when user fails quiz.
+ * Uses book context for 9th-10th grade NCTB ICT.
+ */
+async function generateAIQuizFeedback(
+  bookContext: string,
+  topicTitle: string,
+  concepts: string[],
+  question: string,
+  wrongAnswer: string,
+  correctAnswer: string
+): Promise<string> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: ICT_TUTOR_SYSTEM },
+        {
+          role: 'user',
+          content: `একজন নবম-দশম শ্রেণির শিক্ষার্থী কুইজে ভুল করেছেন। নিচের তথ্য দিয়ে একটা খুব সহজ, উৎসাহদায়ক ব্যাখ্যা তৈরি করো (২-৩ বাক্য, শুধু বাংলায়):
+
+বই/টপিক: ${bookContext}
+প্রশ্ন: ${question}
+ভুল উত্তর: ${wrongAnswer}
+সঠিক উত্তর: ${correctAnswer}
+টপিকের ধারণা: ${concepts.join('; ')}
+
+লেখো: চিন্তা করবেন না—ভুল করা শেখার অংশ। সঠিক উত্তর কেন সঠিক তা খুব সহজ ভাষায় বলো। উদাহরণ দিয়ে বোঝাও। শেষে "আরেকবার চেষ্টা করুন" বলো।`,
+        },
+      ],
+      max_tokens: 200,
+    })
+    const text = completion.choices[0]?.message?.content?.trim()
+    return text || ''
+  } catch {
+    return ''
+  }
+}
 
 function buildOptions(
   state: SessionState,
@@ -128,7 +169,13 @@ export async function POST(request: NextRequest) {
         reply: content.text,
         imageUrl: content.imageUrl,
         options: buildOptions({ phase: 'topic_learn', topicId, chapterId: ch?.id }, ''),
-        nextState: { phase: 'topic_learn', topicId, chapterId: ch?.id, weakTopics: sessionState.weakTopics },
+        nextState: {
+          phase: 'topic_learn',
+          topicId,
+          chapterId: ch?.id,
+          weakTopics: sessionState.weakTopics,
+          consecutiveWrongInChapter: 0,
+        },
       })
     }
 
@@ -151,7 +198,13 @@ export async function POST(request: NextRequest) {
         reply: content.text,
         imageUrl: content.imageUrl,
         options: buildOptions({ phase: 'topic_learn', chapterId: cid, topicId: firstTopic.id }, ''),
-        nextState: { phase: 'topic_learn', chapterId: cid, topicId: firstTopic.id, weakTopics: sessionState.weakTopics },
+        nextState: {
+          phase: 'topic_learn',
+          chapterId: cid,
+          topicId: firstTopic.id,
+          weakTopics: sessionState.weakTopics,
+          consecutiveWrongInChapter: 0,
+        },
       })
     }
 
@@ -195,20 +248,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         reply: quiz.question,
         options: opts,
-        nextState: { phase: 'quiz', topicId, chapterId: sessionState.chapterId, quizQuestionIndex: 0, weakTopics: sessionState.weakTopics },
+        nextState: {
+          phase: 'quiz',
+          topicId,
+          chapterId: sessionState.chapterId,
+          quizQuestionIndex: 0,
+          weakTopics: sessionState.weakTopics,
+          consecutiveWrongInChapter: sessionState.consecutiveWrongInChapter,
+        },
       })
     }
 
     if (msg.startsWith('answer:') && sessionState.phase === 'quiz') {
       const idx = parseInt(msg.replace('answer:', ''), 10)
       const topicId = sessionState.topicId || ''
+      const chapterId = sessionState.chapterId || ''
       const { correct, feedback } = await evaluateAnswer(topicId, idx, 0)
 
       const prevFailCount = sessionState.quizFailCount ?? 0
       const newFailCount = correct ? 0 : prevFailCount + 1
+      const prevConsecWrong = sessionState.consecutiveWrongInChapter ?? 0
+      const newConsecWrong = correct ? 0 : prevConsecWrong + 1
       const weakTopics = [...new Set([...(sessionState.weakTopics ?? []), ...(correct ? [] : [topicId])])]
 
-      // Adaptive Learning: fail twice → auto simpler explanation with analogy
+      // Adaptive: 3 consecutive wrong in chapter → suggest visual/video instead of quiz
+      if (!correct && newConsecWrong >= 3) {
+        const visual = await getVisualOrVideoSuggestion(topicId, chapterId)
+        return NextResponse.json({
+          reply: visual.text,
+          imageUrl: visual.imageUrl,
+          options: [
+            { label: 'কুইজ আবার দাও', action: 'start_quiz' },
+            { label: 'পরবর্তী টপিক', action: 'next_topic' },
+          ],
+          nextState: {
+            phase: 'topic_learn',
+            topicId,
+            chapterId,
+            lastQuizResult: false,
+            quizFailCount: 0,
+            consecutiveWrongInChapter: 0,
+            weakTopics,
+          },
+        })
+      }
+
+      // Adaptive Learning: fail twice (same topic) → auto simpler explanation with analogy
       if (!correct && newFailCount >= 2) {
         const content = await getSimplerExplanationWithAnalogy(topicId)
         return NextResponse.json({
@@ -220,26 +305,51 @@ export async function POST(request: NextRequest) {
           nextState: {
             phase: 'topic_learn',
             topicId,
-            chapterId: sessionState.chapterId,
+            chapterId,
             lastQuizResult: false,
             quizFailCount: 0,
+            consecutiveWrongInChapter: newConsecWrong,
             weakTopics,
           },
         })
       }
 
+      // Enhance feedback with AI-generated simple, encouraging explanation
+      const topic = getTopic(book, topicId)
+      const quiz = await getQuizForTopic(topicId)
+      const q = topic?.quizQuestions?.[0]
+      const question = quiz?.question ?? ''
+      const wrongAnswer = quiz?.options?.[idx] ?? ''
+      const correctAnswer = q ? q.options[q.correct] ?? '' : ''
+
+      let finalFeedback = feedback
+      if (topic && question && wrongAnswer && correctAnswer) {
+        const aiExplanation = await generateAIQuizFeedback(
+          getContextForAI(book, { chapterId, topicId }),
+          topic.title,
+          topic.concepts,
+          question,
+          wrongAnswer,
+          correctAnswer
+        )
+        if (aiExplanation) {
+          finalFeedback = aiExplanation + '\n\n---\n\n' + feedback
+        }
+      }
+
       return NextResponse.json({
-        reply: feedback,
+        reply: finalFeedback,
         options: buildOptions(
-          { phase: 'topic_learn', topicId, chapterId: sessionState.chapterId, lastQuizResult: correct },
+          { phase: 'topic_learn', topicId, chapterId, lastQuizResult: correct },
           ''
         ),
         nextState: {
           phase: 'topic_learn',
           topicId,
-          chapterId: sessionState.chapterId,
+          chapterId,
           lastQuizResult: correct,
           quizFailCount: newFailCount,
+          consecutiveWrongInChapter: newConsecWrong,
           weakTopics,
         },
       })
@@ -257,7 +367,13 @@ export async function POST(request: NextRequest) {
           reply: content.text,
           imageUrl: content.imageUrl,
           options: buildOptions({ phase: 'topic_learn', chapterId, topicId: nextTopic.id }, ''),
-          nextState: { phase: 'topic_learn', chapterId, topicId: nextTopic.id, weakTopics: sessionState.weakTopics },
+          nextState: {
+            phase: 'topic_learn',
+            chapterId,
+            topicId: nextTopic.id,
+            weakTopics: sessionState.weakTopics,
+            consecutiveWrongInChapter: sessionState.consecutiveWrongInChapter,
+          },
         })
       }
       const weakTopicOptions = getSuggestedWeakTopics(book, sessionState.weakTopics ?? [])

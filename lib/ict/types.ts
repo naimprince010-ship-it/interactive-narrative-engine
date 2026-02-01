@@ -16,6 +16,8 @@ export type Topic = {
   quizQuestions?: QuizQuestion[]
   /** Image URL for multi-modal learning (e.g. Network Topology, Charles Babbage) */
   imageUrl?: string
+  /** Optional video URL for visual learning when user struggles */
+  videoUrl?: string
 }
 
 export type Chapter = {
@@ -37,6 +39,8 @@ export type SessionState = {
   completedTopics?: string[]
   /** Quiz fail count for current topic — triggers adaptive path after 2 fails */
   quizFailCount?: number
+  /** Consecutive wrong answers in current chapter — at 3, suggest visual/video instead of quiz */
+  consecutiveWrongInChapter?: number
   /** Topic IDs user struggled with — used for weak-point suggestions */
   weakTopics?: string[]
 }

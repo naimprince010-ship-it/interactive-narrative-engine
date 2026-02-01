@@ -122,7 +122,12 @@
           "quizQuestions": [
             {
               "question": "B2 থেকে B5 পর্যন্ত সংখ্যার গড় বের করতে কোন ফাংশন?",
-              "options": ["=SUM(B2:B5)", "=AVERAGE(B2:B5)", "=TOTAL(B2:B5)", "=MEAN(B2:B5)"],
+              "options": [
+                "=SUM(B2:B5)",
+                "=AVERAGE(B2:B5)",
+                "SUM(B2:B5)",
+                "=AVERAGE(B2,B5)"
+              ],
               "correct": 1
             }
           ]
@@ -160,6 +165,7 @@
         {
           "id": "ch6-t1",
           "title": "প্রোগ্রাম ও প্রোগ্রামিং",
+          "videoUrl": "https://www.youtube.com/results?search_query=প্রোগ্রামিং+অ্যালগোরিদম+বাংলা+NCTB",
           "concepts": [
             "প্রোগ্রাম = কম্পিউটারকে দেওয়া নির্দেশাবলির সমষ্টি",
             "প্রোগ্রামিং = প্রোগ্রাম লেখার প্রক্রিয়া",

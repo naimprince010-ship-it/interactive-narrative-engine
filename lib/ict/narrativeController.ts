@@ -93,6 +93,60 @@ export async function getSimplerExplanationWithAnalogy(topicId: string): Promise
   return `দুইবার ভুল হওয়ায় আমি আরও সহজভাবে ব্যাখ্যা করছি:\n\n**বাস্তব উদাহরণ:**\n${analogy}\n\n**মূল ধারণা:** ${concepts}\n\nএখন আবার কুইজ দিতে চান? না হলে পরবর্তী টপিকে যান।`
 }
 
+/** Video links per topic/chapter for adaptive learning (3+ consecutive wrong) */
+const TOPIC_VIDEO_LINKS: Record<string, string> = {
+  'ch1-t1': 'https://www.youtube.com/results?search_query=NCTB+তথ্য+ও+যোগাযোগ+প্রযুক্তি',
+  'ch1-t2': 'https://www.youtube.com/results?search_query=ICT+Information+Communication+Technology+Bangla',
+  'ch2-t1': 'https://www.youtube.com/results?search_query=কম্পিউটার+ইনপুট+প্রক্রিয়াকরণ+আউটপুট',
+  'ch3-t1': 'https://www.youtube.com/results?search_query=বাইনারি+সংখ্যা+পদ্ধতি+NCTB',
+  'ch4-t1': 'https://www.youtube.com/results?search_query=স্প্রেডশিট+এক্সেল+টিউটোরিয়াল+বাংলা',
+  'ch4-t2': 'https://www.youtube.com/results?search_query=Excel+SUM+AVERAGE+ফাংশন+বাংলা',
+  'ch5-t1': 'https://www.youtube.com/results?search_query=ইন্টারনেট+ওয়েব+ইমেইল+NCTB',
+  'ch6-t1': 'https://www.youtube.com/results?search_query=প্রোগ্রামিং+অ্যালগোরিদম+বাংলা+টিউটোরিয়াল',
+}
+
+/**
+ * Adaptive: After 3 consecutive wrong in chapter — suggest visual/video instead of continuing quiz
+ */
+export async function getVisualOrVideoSuggestion(
+  topicId: string,
+  chapterId: string
+): Promise<{ text: string; imageUrl?: string; videoUrl?: string }> {
+  const book = await loadBookStructure()
+  const topic = getTopic(book, topicId)
+  if (!topic) return { text: 'এই টপিকটি খুঁজে পাওয়া যাচ্ছে না।' }
+
+  const ch = book.chapters.find((c) => c.id === chapterId)
+  const chapterTitle = ch?.title ?? ''
+
+  const videoUrl = topic.videoUrl ?? TOPIC_VIDEO_LINKS[topicId]
+  const hasImage = !!topic.imageUrl
+
+  const parts: string[] = [
+    `**দেখে শেখা সহজ!** এই অধ্যায়ে (${chapterTitle}) তিনবার ভুল হওয়ায় আমরা কুইজের বদলে ভিজ্যুয়াল ব্যাখ্যা suggest করছি।`,
+  ]
+
+  if (hasImage) {
+    parts.push('উপরে দেওয়া ছবিটি মনোযোগ দিয়ে দেখুন — এটি এই টপিক বোঝাতে সাহায্য করবে।')
+  }
+
+  if (videoUrl) {
+    parts.push(
+      `**ভিডিও দেখুন:** নিচের লিঙ্ক থেকে বাংলা ভিডিও টিউটোরিয়াল দেখে আবার চেষ্টা করুন:\n${videoUrl}`
+    )
+  } else {
+    parts.push('ইউটিউবে "' + topic.title + ' NCTB" লিখে সার্চ করে বাংলা ভিডিও দেখতে পারেন।')
+  }
+
+  parts.push('\nদেখে বুঝে আবার "কুইজ দাও" চাপতে পারেন, অথবা পরবর্তী টপিকে যান।')
+
+  return {
+    text: parts.join('\n\n'),
+    imageUrl: topic.imageUrl,
+    videoUrl,
+  }
+}
+
 /**
  * Suggest topics to revise based on weak points (topics user struggled with)
  */
@@ -135,6 +189,58 @@ export type EvaluateAnswerResult = {
 }
 
 /**
+ * Spreadsheet Chapter 4: check formula syntax errors and return specific feedback
+ */
+function getSpreadsheetFormulaFeedback(
+  wrongAnswer: string,
+  correctAnswer: string,
+  question: string
+): string {
+  const w = wrongAnswer.trim()
+  const issues: string[] = []
+
+  const looksLikeFormula = /sum|average|total|mean/i.test(w)
+
+  if (looksLikeFormula && !w.startsWith('=')) {
+    issues.push('আপনার formula-তে সমান (=) চিহ্ন দেওয়া হয়নি। এক্সেলে সব সূত্র = দিয়ে শুরু করতে হয়।')
+  }
+
+  const hasColon = /[A-Z]\d+:[A-Z]\d+/i.test(w)
+  const hasCommaRange = /[A-Z]\d+,\s*[A-Z]\d+/i.test(w)
+  if (looksLikeFormula && hasCommaRange && !hasColon) {
+    issues.push('Range ঠিকমতো দেওয়া হয়নি — কমা (,) নয়, কোলন (:) দিতে হবে। যেমন B2:B5 মানে B2 থেকে B5 পর্যন্ত সব সেল।')
+  }
+
+  if (looksLikeFormula && !hasColon && !hasCommaRange && /\([^)]+\)/.test(w)) {
+    const inner = w.match(/\(([^)]+)\)/)?.[1] ?? ''
+    if (/[A-Z]\d+/i.test(inner) && !inner.includes(':')) {
+      issues.push('Range-এর জন্য কোলন (:) দরকার। B2:B5 লিখুন, শুধু B2 বা B2,B5 নয়।')
+    }
+  }
+
+  if (issues.length > 0) {
+    return (
+      `**সূত্রের সিনট্যাক্স:**\n${issues.join('\n\n')}\n\n` +
+      `বইয়ের page 54–55 (স্প্রেডশিট অধ্যায়) এর নিয়মটি দেখুন। সঠিক উদাহরণ: ${correctAnswer}`
+    )
+  }
+
+  const isWrongFunction =
+    /sum/i.test(w) && /average/i.test(correctAnswer.toLowerCase()) ||
+    /average/i.test(w) && /sum/i.test(correctAnswer.toLowerCase())
+  if (isWrongFunction) {
+    if (/average/i.test(question) || /গড়/i.test(question)) {
+      return 'আপনি SUM বেছে নিয়েছেন, কিন্তু প্রশ্নে গড় চাওয়া হয়েছে। গড়ের জন্য AVERAGE ফাংশন ব্যবহার করুন।'
+    }
+    if (/যোগ|যোগফল|sum/i.test(question)) {
+      return 'আপনি AVERAGE বেছে নিয়েছেন, কিন্তু প্রশ্নে যোগফল চাওয়া হয়েছে। যোগের জন্য SUM ফাংশন ব্যবহার করুন।'
+    }
+  }
+
+  return `আপনার দেওয়া উত্তর "${wrongAnswer}" সঠিক নয়। সঠিক সূত্র: ${correctAnswer} — বইয়ের page 54–55 দেখুন।`
+}
+
+/**
  * Evaluate quiz answer. On wrong answer: find concept from book, return corrective feedback + hint.
  */
 export async function evaluateAnswer(
@@ -159,19 +265,37 @@ export async function evaluateAnswer(
     }
   }
 
+  // Chapter 4 (Spreadsheet): formula syntax–specific feedback
+  const isSpreadsheetChapter = topicId.startsWith('ch4-')
+  const formulaFeedback = isSpreadsheetChapter
+    ? getSpreadsheetFormulaFeedback(wrongAnswerText, correctAnswerText, q.question)
+    : null
+
   // Wrong answer: find relevant concept from book and build corrective feedback
   const relevantConcept = topic.concepts[0] ?? `এই টপিকে ${topic.title} সম্পর্কে আলোচনা করা হয়েছে।`
   const example = topic.examples?.[0]
 
-  const correctiveFeedback = [
+  const correctiveParts: string[] = [
     `**NCTB বই অনুযায়ী:** ${relevantConcept}`,
     `তাই সঠিক উত্তর হলো: **${correctAnswerText}**।`,
-    `আপনার দেওয়া উত্তর "${wrongAnswerText}" এই ধারণার সাথে মিলে না।`,
-  ].join('\n\n')
+  ]
 
-  const hint = example
-    ? `হিন্ট: ${example}`
-    : `হিন্ট: "${topic.title}" টপিকের সংজ্ঞা বা ধারণা আবার দেখুন।`
+  if (formulaFeedback) {
+    correctiveParts.push(formulaFeedback)
+  } else {
+    correctiveParts.push(`আপনার দেওয়া উত্তর "${wrongAnswerText}" এই ধারণার সাথে মিলে না।`)
+  }
+
+  const correctiveFeedback = correctiveParts.join('\n\n')
+
+  let hint: string
+  if (formulaFeedback && isSpreadsheetChapter) {
+    hint = 'হিন্ট: বইয়ের page 54 (স্প্রেডশিট অধ্যায়) এ সূত্রের সিনট্যাক্স দেখুন — = চিহ্ন ও range-এর জন্য : (কোলন) দরকার।'
+  } else if (example) {
+    hint = `হিন্ট: ${example}`
+  } else {
+    hint = `হিন্ট: "${topic.title}" টপিকের সংজ্ঞা বা ধারণা আবার দেখুন।`
+  }
 
   const feedback = [
     'ভুল।',
