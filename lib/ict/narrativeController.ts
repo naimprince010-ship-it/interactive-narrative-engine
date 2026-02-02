@@ -1,20 +1,16 @@
 /**
  * ICT Narrative Controller — State machine and branching logic
  * Loads book_structure.json as source of truth
+ * Import directly so it's bundled with serverless (Vercel)
  */
 
 import type { BookStructure, Topic, Chapter, QuizQuestion, SessionState } from './types'
+import bookStructureJson from '@/data/ict/book_structure.json'
 
-let cachedStructure: BookStructure | null = null
+const bookStructure = bookStructureJson as BookStructure
 
 async function loadBookStructure(): Promise<BookStructure> {
-  if (cachedStructure) return cachedStructure
-  const path = await import('path')
-  const fs = await import('fs')
-  const p = path.join(process.cwd(), 'data', 'ict', 'book_structure.json')
-  const raw = fs.readFileSync(p, 'utf-8')
-  cachedStructure = JSON.parse(raw) as BookStructure
-  return cachedStructure
+  return bookStructure
 }
 
 export async function getBookStructure(): Promise<BookStructure> {
