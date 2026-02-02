@@ -3,12 +3,12 @@
 type Chapter = { id: string; title: string }
 
 const CHAPTERS: Chapter[] = [
-  { id: 'ch1', title: 'তথ্য ও ICT পরিচিতি' },
-  { id: 'ch2', title: 'কম্পিউটার' },
-  { id: 'ch3', title: 'সংখ্যা পদ্ধতি' },
+  { id: 'ch1', title: 'ICT ও বাংলাদেশ' },
+  { id: 'ch2', title: 'কম্পিউটার ও নিরাপত্তা' },
+  { id: 'ch3', title: 'আমার শিক্ষায় ইন্টারনেট' },
   { id: 'ch4', title: 'স্প্রেডশিট' },
   { id: 'ch5', title: 'মাল্টিমিডিয়া ও গ্রাফিক্স' },
-  { id: 'ch6', title: 'প্রোগ্রামিং' },
+  { id: 'ch6', title: 'ডেটাবেজ' },
 ]
 
 type ProgressMapProps = {

@@ -86,12 +86,12 @@ function buildOptions(
     const list =
       chapters ||
       [
-        { id: 'ch1', title: 'তথ্য ও যোগাযোগ প্রযুক্তি পরিচিতি' },
-        { id: 'ch2', title: 'কম্পিউটার ও এর ব্যবহার' },
-        { id: 'ch3', title: 'সংখ্যা পদ্ধতি' },
+        { id: 'ch1', title: 'তথ্য ও যোগাযোগ প্রযুক্তি এবং আমাদের বাংলাদেশ' },
+        { id: 'ch2', title: 'কম্পিউটার ও কম্পিউটার ব্যবহারকারীর নিরাপত্তা' },
+        { id: 'ch3', title: 'আমার শিক্ষায় ইন্টারনেট' },
         { id: 'ch4', title: 'আমার লেখালেখি ও হিসাব' },
         { id: 'ch5', title: 'মাল্টিমিডিয়া ও গ্রাফিক্স' },
-        { id: 'ch6', title: 'প্রোগ্রামিং পরিচিতি' },
+        { id: 'ch6', title: 'ডেটাবেজ-এর ব্যবহার' },
       ]
     const opts = list.map((ch) => ({ label: ch.title, action: `select_chapter:${ch.id}` }))
     if (weakTopicOptions && weakTopicOptions.length > 0) {

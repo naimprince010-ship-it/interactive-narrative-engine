@@ -63,10 +63,17 @@ export async function getTopicContent(topicId: string): Promise<TopicContentResu
 
 /** Real-world analogies per topic (ICT book-inspired) for adaptive learning */
 const TOPIC_ANALOGIES: Record<string, string> = {
-  'ch1-t1': 'তথ্য যেমন রেসিপি — কাঁচা উপাদান (ডেটা) দিয়ে রান্না করলে একটা পূর্ণাঙ্গ খাবার (তথ্য) হয়।',
-  'ch1-t2': 'ICT যেমন পোস্ট অফিস — তথ্য এক জায়গা থেকে অন্য জায়গায় পৌঁছে দেয়, ঠিক চিঠির মতো।',
+  'ch1-t1': 'জ্ঞান ভিত্তিক অর্থনীতি যেমন ডিজিটাল ব্যাংক — তথ্য ও দক্ষতাই মূল সম্পদ।',
+  'ch1-t2': 'চার্লস ব্যাবেজ যেমন টেলিফোনের গ্রাহাম বেল — কম্পিউটারের জনক।',
+  'ch1-t3': 'ই-গভর্ন্যান্স যেমন অনলাইন ব্যাংকিং — ঝামেলাহীন, দ্রুত সেবা।',
+  'ch1-t4': 'ই-পূর্জি যেমন এসএমএস ব্যাংকিং — মোবাইল দিয়ে তাৎক্ষণিক সেবা।',
   'ch2-t1': 'কম্পিউটার যেমন রেসিপে — আপনি ইনপুট দেন (উপাদান), প্রক্রিয়া হয় (রান্না), আউটপুট আসে (খাবার)।',
-  'ch3-t1': 'বাইনারি যেমন সিঁড়ির আলো — হয় জ্বলে (১) নয় নিভে (০)। শুধু দুটো স্টেট।',
+  'ch2-t2': 'এন্টিভাইরাস যেমন ডাক্তার — ভাইরাস শনাক্ত করে কম্পিউটার রক্ষা করে।',
+  'ch2-t3': 'মৌলিক পাসওয়ার্ড যেমন তালা — জটিল তালা ভাঙা কঠিন।',
+  'ch2-t4': 'বাইনারি যেমন সিঁড়ির আলো — হয় জ্বলে (১) নয় নিভে (০)। শুধু দুটো স্টেট।',
+  'ch3-t1': 'ডিজিটাল কনটেন্ট যেমন ডিজিটাল গ্রন্থাগার — লিখিত, ছবি, ভিডিও সব এক জায়গায়।',
+  'ch3-t2': 'ই-বুক যেমন পকেটে পুরো লাইব্রেরি — মুদ্রিত বইয়ের ইলেকট্রনিক সংস্করণ।',
+  'ch3-t3': 'ইন্টারনেট যেমন বিশ্বের জানালা — যেকোনো তথ্য, যেকোনো সময়, যেকোনো জায়গা থেকে।',
   'ch4-t0': 'ওয়ার্ড প্রসেসর যেমন ডিজিটাল খাতা — লিখুন, সংশোধন করুন, সাজান; সব কিছু সহজে।',
   'ch4-t1': 'স্প্রেডশিট যেমন খাতা — সারি আর কলাম দিয়ে টেবিল; প্রতিটি ঘর একটা নির্দিষ্ট জায়গা।',
   'ch4-t2': 'সূত্র যেমন রেসিপি — ধাপে ধাপে (=, ফাংশন, এন্টার) অনুসরণ করলে ফলাফল মেলে।',
@@ -75,7 +82,9 @@ const TOPIC_ANALOGIES: Record<string, string> = {
   'ch5-t2': 'অ্যানিমেশন যেমন ফ্লিপ বুক — ছবি ধাপে ধাপে পালটালে চলমান মনে হয়।',
   'ch5-t3': 'প্রেজেন্টেশন যেমন ক্লাসে বোর্ডে লেকচার — স্লাইড দিয়ে তথ্য সাজিয়ে দেখানো।',
   'ch5-t4': 'ফটোশপ যেমন চিত্রকলার প্যালেট — ডিজিটাল ক্যানভাসে ছবি এডিট করা।',
-  'ch6-t1': 'অ্যালগোরিদম যেমন রান্নার রেসিপি — ধাপে ধাপে নির্দেশ, যা অনুসরণ করলে ফলাফল মেলে।',
+  'ch6-t1': 'ডেটাবেজ যেমন সুসজ্জিত ফাইলের আলমারি — ফিল্ড, রেকর্ড দিয়ে তথ্য খুঁজে পাওয়া যায়।',
+  'ch6-t2': 'MS Access যেমন ডিজিটাল রেজিস্টার — টেবিলে তথ্য সাজিয়ে রাখা ও খোঁজা।',
+  'ch6-t3': 'কুয়েরি যেমন গুগল সার্চ — শর্ত দিয়ে ডেটাবেজ থেকে нужিত তথ্য বের করা।',
 }
 
 export async function getSimplerExplanation(topicId: string): Promise<string> {
@@ -101,9 +110,16 @@ export async function getSimplerExplanationWithAnalogy(topicId: string): Promise
 /** Video links per topic/chapter for adaptive learning (3+ consecutive wrong) */
 const TOPIC_VIDEO_LINKS: Record<string, string> = {
   'ch1-t1': 'https://www.youtube.com/results?search_query=NCTB+তথ্য+ও+যোগাযোগ+প্রযুক্তি',
-  'ch1-t2': 'https://www.youtube.com/results?search_query=ICT+Information+Communication+Technology+Bangla',
+  'ch1-t2': 'https://www.youtube.com/results?search_query=চার্লস+ব্যাবেজ+কম্পিউটার+ইতিহাস',
+  'ch1-t3': 'https://www.youtube.com/results?search_query=ই-গভর্ন্যান্স+ই-লার্নিং+বাংলা',
+  'ch1-t4': 'https://www.youtube.com/results?search_query=ডিজিটাল+বাংলাদেশ+ই-সেবা',
   'ch2-t1': 'https://www.youtube.com/results?search_query=কম্পিউটার+ইনপুট+প্রক্রিয়াকরণ+আউটপুট',
-  'ch3-t1': 'https://www.youtube.com/results?search_query=বাইনারি+সংখ্যা+পদ্ধতি+NCTB',
+  'ch2-t2': 'https://www.youtube.com/results?search_query=এন্টিভাইরাস+ভাইরাস+কম্পিউটার',
+  'ch2-t3': 'https://www.youtube.com/results?search_query=পাসওয়ার্ড+নিরাপত্তা+কম্পিউটার',
+  'ch2-t4': 'https://www.youtube.com/results?search_query=বাইনারি+সংখ্যা+পদ্ধতি+NCTB',
+  'ch3-t1': 'https://www.youtube.com/results?search_query=ডিজিটাল+কনটেন্ট+NCTB',
+  'ch3-t2': 'https://www.youtube.com/results?search_query=ই-বুক+ইলেকট্রনিক+বই+বাংলা',
+  'ch3-t3': 'https://www.youtube.com/results?search_query=ইন্টারনেট+শিক্ষায়+ব্যবহার+NCTB',
   'ch4-t0': 'https://www.youtube.com/results?search_query=মাইক্রোসফট+ওয়ার্ড+টিউটোরিয়াল+বাংলা',
   'ch4-t1': 'https://www.youtube.com/results?search_query=স্প্রেডশিট+এক্সেল+টিউটোরিয়াল+বাংলা',
   'ch4-t2': 'https://www.youtube.com/results?search_query=এক্সেলে+সূত্র+তৈরি+ধাপ+বাংলা',
@@ -112,7 +128,9 @@ const TOPIC_VIDEO_LINKS: Record<string, string> = {
   'ch5-t2': 'https://www.youtube.com/results?search_query=অ্যানিমেশন+ভিডিও+বাংলা',
   'ch5-t3': 'https://www.youtube.com/results?search_query=পাওয়ারপয়েন্ট+প্রেজেন্টেশন+বাংলা',
   'ch5-t4': 'https://www.youtube.com/results?search_query=ফটোশপ+টিউটোরিয়াল+বাংলা',
-  'ch6-t1': 'https://www.youtube.com/results?search_query=প্রোগ্রামিং+অ্যালগোরিদম+বাংলা+টিউটোরিয়াল',
+  'ch6-t1': 'https://www.youtube.com/results?search_query=ডেটাবেজ+MS+Access+বাংলা',
+  'ch6-t2': 'https://www.youtube.com/results?search_query=MS+Access+টিউটোরিয়াল+বাংলা',
+  'ch6-t3': 'https://www.youtube.com/results?search_query=এক্সেস+কুয়েরি+রিপোর্ট+বাংলা',
 }
 
 /**
